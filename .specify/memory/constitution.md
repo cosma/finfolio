@@ -1,50 +1,143 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!-- SYNC IMPACT REPORT
+Version: 1.0.0 → 2.0.0 (MAJOR: full redefinition of core principles for actual project scope)
+Modified Principles:
+  - "Fact-Check Accuracy" → "I. Accuracy Over Speed" (redefined: unverified labeling requirement)
+  - "Test-First Development" → moved out of Core Principles into Development Workflow
+  - "Type Safety & Static Analysis" → moved out of Core Principles into Development Workflow
+  - "Clean Code & Consistency" → moved out of Core Principles into Development Workflow
+  - "Lean Dependencies & Memory Efficiency" → folded into Technical Constraints (Resource & Cost Discipline)
+Added Principles: II. No Financial Advice, III. Facts vs. Forecasts Separation,
+  IV. Transparency About Method, V. Monetization Awareness, VI. Reliability Over Cleverness,
+  VII. Resource & Cost Discipline
+Added Sections: Technical Constraints (replaces "Dependency Configuration")
+Removed Sections: none (content relocated, not deleted)
+Ratified: 2026-09-23 | Last Amended: 2026-09-23
+-->
+
+# finfolio Constitution
+
+finfolio is a Python pipeline and library that helps retail investors evaluate financial-advice
+YouTube content by fact-checking it against independent sources. This constitution establishes
+non-negotiable principles guiding all development, review, and deployment decisions.
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Accuracy Over Speed (Non-Negotiable)
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+Every factual claim extracted from a video MUST be checked against independent primary sources
+before it is reported. A claim that cannot be verified MUST be labeled "unverified" — it is never
+guessed at and never silently dropped. No latency or throughput target justifies skipping
+verification.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### II. No Financial Advice
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+The system reports facts and their accuracy only. It MUST NOT recommend buying, selling, or
+holding any security. Every report MUST carry a short disclaimer stating this. This is a hard
+boundary, not a style preference — outputs that read as a recommendation are non-compliant.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### III. Facts vs. Forecasts Separation
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+Verified factual claims (numbers, dates, named deals, figures) MUST be kept structurally distinct
+from the advisor's opinions, predictions, and forecasts. Opinions and forecasts MUST NOT be
+fact-checked as if they were verifiable claims — they are reported as opinion, not scored for
+accuracy.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### IV. Transparency About Method
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+Every report MUST state which transcript source was used. If a transcript could not be retrieved,
+this MUST be flagged plainly rather than fabricating a summary from the video's title or
+description alone. Silent degradation of report quality is not permitted.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### V. Monetization Awareness
+
+Reports MUST note, as a neutral disclosure rather than a judgment, when a channel promotes a paid
+product (course, app, affiliate link) in the video being reviewed. This is disclosure, not
+editorializing — the report states the fact of promotion without characterizing it as good or bad.
+
+### VI. Reliability Over Cleverness
+
+All YouTube data (channel search, video listing, captions) MUST come from the official YouTube
+Data API v3. HTML scraping is prohibited. This keeps the pipeline from breaking whenever YouTube
+changes its site markup, trading a small amount of API-coverage flexibility for long-term
+stability.
+
+### VII. Resource & Cost Discipline
+
+YouTube Data API usage MUST stay under the 10,000-unit daily quota. Claude API usage MUST be
+cost-monitored, targeting roughly $10-20/month at the current scale of 20-30 videos/week across
+approximately 10 channels. The system MUST default to Haiku models and MUST support switching
+models via configuration at runtime — never hardcoded, per the project's model-configuration
+policy (see `CLAUDE.md`).
+
+## Technical Constraints
+
+**Data Sourcing**:
+- YouTube Data API v3 is the only permitted source for channel, video, and caption data (Principle VI)
+- No HTML scraping, no unofficial/reverse-engineered endpoints
+
+**Model Configuration**:
+- Default model: `claude-haiku-4-5-20251001`
+- Model identifier MUST be read from configuration (environment variable or config file), never
+  hardcoded in application code
+- Switching models is a manual configuration change, never an automatic code-level escalation
+- Set `temperature` only when a specific need exists; avoid otherwise
+
+**Resource Ceilings**:
+- YouTube Data API: hard ceiling of 10,000 units/day — implement quota tracking and graceful
+  backoff before the ceiling is hit, not after
+- Claude API spend: target $10-20/month at ~20-30 videos/week across ~10 channels; cost per run
+  MUST be observable (logged or reported), not just inferred after the invoice arrives
+- Machine constraints: 8 GB RAM, 2 GB Docker VM — prefer prebuilt wheels, CPU-only ML dependencies,
+  and lean single-stage Docker builds (see `CLAUDE.md` for full guidance)
+
+## Development Workflow
+
+**Test-First for Fact-Checking Logic**:
+- Any code that extracts, verifies, or labels a claim MUST have tests written before
+  implementation (Red-Green-Refactor)
+- Test cases MUST include: a verifiable claim, an unverifiable claim (expect "unverified" label),
+  and a forecast/opinion statement (expect no fact-check applied)
+
+**Type Safety & Static Analysis**:
+- New code MUST use type hints (Python 3.10+ syntax) and pass `mypy` before merge
+- Untyped exceptions require documented rationale
+
+**Clean Code**:
+- Code MUST pass `ruff check` and `ruff format` before merge; linting failures are blocking
+
+**Code Review Requirements**:
+- Every PR requires at least one peer review before merge
+- For changes touching fact-checking logic: reviewer MUST verify source traceability (Principle I)
+  and correct fact/forecast separation (Principle III)
+- For changes touching report output: reviewer MUST verify the disclaimer (Principle II) and
+  monetization disclosure (Principle V) are still present
+- Merge only when tests pass, types check, linting passes, and reviewer has approved
+
+**Before Committing**:
+- Run `pytest`, `mypy src/`, `ruff check src/ tests/`, `ruff format src/ tests/`
+- Review `git diff` to ensure no API keys, secrets, or accidental large files are staged
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+**Constitution Authority**:
+This constitution supersedes all other project practices and guidance. Runtime implementation
+detail lives in `CLAUDE.md`; the constitution sets policy and `CLAUDE.md` provides the how-to.
+Where they conflict, the constitution wins and `CLAUDE.md` should be updated to match.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Amendment Procedure**:
+- Proposed changes MUST document what is changing, why, and the impact on existing reports or
+  pipeline behavior
+- Version bumps follow semantic versioning:
+  - MAJOR: Backward-incompatible principle removals or redefinitions
+  - MINOR: New principles, sections, or materially expanded guidance
+  - PATCH: Clarifications, wording, typo fixes, non-semantic refinements
+
+**Compliance Review**:
+- All PRs touching fact-checking, report generation, or API integration MUST reference the
+  relevant principle(s) above
+- Principles I-VI (accuracy, no-advice, fact/forecast separation, transparency, monetization
+  disclosure, official-API-only) are blocking and MUST NOT be waived
+- Principle VII (resource/cost ceilings) MAY be temporarily exceeded only with an explicit,
+  documented plan to bring usage back under the ceiling
+
+**Version**: 2.0.0 | **Ratified**: 2026-09-23 | **Last Amended**: 2026-09-23
