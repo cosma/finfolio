@@ -19,6 +19,8 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+Important: You *must* use your AskUserQuestion tool, before creating any issues on GitHub.
+
 ## Pre-Execution Checks
 
 **Check for extension hooks (before tasks-to-issues conversion)**:
