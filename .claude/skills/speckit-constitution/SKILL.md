@@ -19,6 +19,8 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+Important: You *must* use your AskUserQuestion tool, before writing to disk.
+
 ## Scope Guard
 
 This command's own work is limited to updating the project constitution itself. Dependent templates

@@ -1,22 +1,12 @@
 <!-- SYNC IMPACT REPORT
-Version: 1.0.0 → 2.0.0 (MAJOR: full redefinition of core principles for actual project scope)
-Modified Principles:
-  - "Fact-Check Accuracy" → "I. Accuracy Over Speed" (redefined: unverified labeling requirement)
-  - "Test-First Development" → moved out of Core Principles into Development Workflow
-  - "Type Safety & Static Analysis" → moved out of Core Principles into Development Workflow
-  - "Clean Code & Consistency" → moved out of Core Principles into Development Workflow
-  - "Lean Dependencies & Memory Efficiency" → folded into Technical Constraints (Resource & Cost Discipline)
-Added Principles: II. No Financial Advice, III. Facts vs. Forecasts Separation,
-  IV. Transparency About Method, V. Monetization Awareness, VI. Reliability Over Cleverness,
-  VII. Resource & Cost Discipline
-Added Sections: Technical Constraints (replaces "Dependency Configuration")
-Removed Sections: none (content relocated, not deleted)
+Version: 2.0.0 → 2.0.1 (PATCH: project name capitalization for consistency)
+Modified Elements: Title "finfolio" → "FinFolio" (capitalized in title and references)
 Ratified: 2026-09-23 | Last Amended: 2026-09-23
 -->
 
-# finfolio Constitution
+# FinFolio Constitution
 
-finfolio is a Python pipeline and library that helps retail investors evaluate financial-advice
+FinFolio is a Python pipeline and library that helps retail investors evaluate financial-advice
 YouTube content by fact-checking it against independent sources. This constitution establishes
 non-negotiable principles guiding all development, review, and deployment decisions.
 
@@ -140,4 +130,4 @@ Where they conflict, the constitution wins and `CLAUDE.md` should be updated to 
 - Principle VII (resource/cost ceilings) MAY be temporarily exceeded only with an explicit,
   documented plan to bring usage back under the ceiling
 
-**Version**: 2.0.0 | **Ratified**: 2026-09-23 | **Last Amended**: 2026-09-23
+**Version**: 2.0.1 | **Ratified**: 2026-09-23 | **Last Amended**: 2026-09-23

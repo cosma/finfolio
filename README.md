@@ -1,4 +1,4 @@
-# finfolio
+# FinFolio
 Fact-checks for finance content
 
 

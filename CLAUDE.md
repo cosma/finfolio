@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**finfolio** is a fact-checking system for finance content. The .gitignore suggests this will be a Python project, likely with a Streamlit UI for presenting fact-checks.
+**FinFolio** is a fact-checking system for finance content. The .gitignore suggests this will be a Python project, likely with a Streamlit UI for presenting fact-checks.
 
 ## Development Commands
 
