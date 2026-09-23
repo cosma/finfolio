@@ -1,6 +1,10 @@
 <!-- SYNC IMPACT REPORT
-Version: 2.0.0 → 2.0.1 (PATCH: project name capitalization for consistency)
-Modified Elements: Title "finfolio" → "FinFolio" (capitalized in title and references)
+Version: 2.0.1 → 2.1.0 (MINOR: expanded Principle VII to mandate LangChain abstraction, cost monitoring,
+and use-case-specific temperature defaults)
+Modified Elements: Principle VII rewritten to require LangChain abstraction layer for all LLM interactions
+  and explicit cost monitoring; Technical Constraints "Model Configuration" section renamed to
+  "LLM Abstraction & Configuration" with detailed abstraction requirements; added "Temperature Defaults
+  by Use Case" section mandating temperature=0 for fact-checking and temperature=0.3 for summarization
 Ratified: 2026-09-23 | Last Amended: 2026-09-23
 -->
 
@@ -53,11 +57,11 @@ stability.
 
 ### VII. Resource & Cost Discipline
 
-YouTube Data API usage MUST stay under the 10,000-unit daily quota. Claude API usage MUST be
-cost-monitored, targeting roughly $10-20/month at the current scale of 20-30 videos/week across
-approximately 10 channels. The system MUST default to Haiku models and MUST support switching
-models via configuration at runtime — never hardcoded, per the project's model-configuration
-policy (see `CLAUDE.md`).
+YouTube Data API usage MUST stay under the 10,000-unit daily quota. LLM usage MUST be closely
+cost-monitored at all times. The system MUST use an abstraction framework (LangChain) for all LLM
+interactions to enable seamless switching between different LLM models and versions without
+changing application code. The default model MUST be Haiku, invoked through the LangChain
+abstraction layer — model selection is a configuration-only decision, never hardcoded.
 
 ## Technical Constraints
 
@@ -65,12 +69,21 @@ policy (see `CLAUDE.md`).
 - YouTube Data API v3 is the only permitted source for channel, video, and caption data (Principle VI)
 - No HTML scraping, no unofficial/reverse-engineered endpoints
 
-**Model Configuration**:
-- Default model: `claude-haiku-4-5-20251001`
-- Model identifier MUST be read from configuration (environment variable or config file), never
-  hardcoded in application code
-- Switching models is a manual configuration change, never an automatic code-level escalation
-- Set `temperature` only when a specific need exists; avoid otherwise
+**LLM Abstraction & Configuration**:
+- All LLM interactions MUST go through LangChain abstraction layer (no direct Claude API calls)
+- Default model: `claude-haiku-4-5-20251001` via LangChain
+- Model identifier and version MUST be read from configuration (environment variable or config file),
+  never hardcoded in application code
+- Switching models or versions is a configuration-only change, never requires code changes
+- LangChain enables swapping LLM providers (Claude, OpenAI, etc.) and versions without touching
+  application logic
+- Cost monitoring MUST track and log every LLM call (model, tokens used, cost incurred)
+
+**Temperature Defaults by Use Case**:
+- Fact-checking operations: `temperature = 0` (deterministic, no randomness — same input always
+  produces same output for verifiable consistency)
+- Summarization operations: `temperature = 0.3` (slight variation to capture nuance while remaining
+  focused and reliable)
 
 **Resource Ceilings**:
 - YouTube Data API: hard ceiling of 10,000 units/day — implement quota tracking and graceful
@@ -130,4 +143,4 @@ Where they conflict, the constitution wins and `CLAUDE.md` should be updated to 
 - Principle VII (resource/cost ceilings) MAY be temporarily exceeded only with an explicit,
   documented plan to bring usage back under the ceiling
 
-**Version**: 2.0.1 | **Ratified**: 2026-09-23 | **Last Amended**: 2026-09-23
+**Version**: 2.1.0 | **Ratified**: 2026-09-23 | **Last Amended**: 2026-09-23
