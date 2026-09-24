@@ -33,6 +33,9 @@ dev = [
 [project.scripts]
 finfolio = "finfolio.cli:main"
 
+[tool.setuptools]
+packages = ["finfolio"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = "test_*.py"
