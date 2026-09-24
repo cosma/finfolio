@@ -2,7 +2,7 @@
 import json
 import sys
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from finfolio.storage import has_transcript
 from finfolio.youtube_client import YouTubeClient
@@ -29,7 +29,7 @@ class ChannelMonitor:
         _log_monitor("channel_monitor_init", "success")
 
     def check_channel(
-        self, channel_id: str, display_name: str, last_fetch: Optional[datetime] = None
+        self, channel_id: str, display_name: str, last_fetch: datetime | None = None
     ) -> list[dict[str, Any]]:
         """Check channel for new videos since last fetch.
 
