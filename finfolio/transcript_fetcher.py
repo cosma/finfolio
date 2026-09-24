@@ -2,9 +2,8 @@
 import json
 import sys
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
-from finfolio import storage
 from finfolio.youtube_client import YouTubeClient
 
 

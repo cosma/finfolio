@@ -1,8 +1,8 @@
 """Unit tests for storage module."""
-import pytest
 from datetime import datetime
-from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 from finfolio import storage
 

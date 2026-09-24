@@ -4,8 +4,7 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
-
+from typing import Any
 
 logger = logging.getLogger(__name__)
 STORAGE_DIR = Path("storage")
@@ -117,7 +116,7 @@ def update_channel_last_fetch(channel_id: str, timestamp: datetime) -> None:
     save_state(state)
 
 
-def get_channel_last_fetch(channel_id: str) -> Optional[datetime]:
+def get_channel_last_fetch(channel_id: str) -> datetime | None:
     """Get last-fetch timestamp for a channel."""
     state = load_state()
     if "channels" not in state or channel_id not in state["channels"]:

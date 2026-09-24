@@ -1,8 +1,8 @@
 """Pytest fixtures for finfolio tests."""
-import json
+from collections.abc import Generator
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Generator
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest

@@ -1,8 +1,7 @@
 """YouTube Data API v3 wrapper for video discovery and caption fetching."""
 import json
-import sys
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -18,7 +17,7 @@ class YouTubeClient:
         self.quota_used = {"search": 0, "caption.list": 0, "caption.download": 0}
 
     def search_channel_videos(
-        self, channel_id: str, after_timestamp: Optional[datetime] = None
+        self, channel_id: str, after_timestamp: datetime | None = None
     ) -> list[dict[str, Any]]:
         """Search channel for videos published after timestamp."""
         try:
@@ -59,7 +58,7 @@ class YouTubeClient:
             }))
             raise
 
-    def fetch_captions(self, video_id: str) -> Optional[str]:
+    def fetch_captions(self, video_id: str) -> str | None:
         """Fetch captions for a video."""
         try:
             # List available captions
