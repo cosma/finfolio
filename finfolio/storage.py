@@ -149,3 +149,17 @@ def get_video_metadata(video_id: str) -> dict[str, Any] | None:
     if "videos" not in state or video_id not in state["videos"]:
         return None
     return state["videos"][video_id]
+
+
+def get_videos_by_channel(channel_id: str) -> list[dict[str, Any]]:
+    """Retrieve all videos fetched from a specific channel."""
+    state = load_state()
+    if "videos" not in state:
+        return []
+
+    videos = []
+    for video_id, metadata in state["videos"].items():
+        if metadata.get("channel_id") == channel_id:
+            videos.append({**metadata, "video_id": video_id})
+
+    return videos

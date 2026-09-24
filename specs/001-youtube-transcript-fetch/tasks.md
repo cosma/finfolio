@@ -500,76 +500,76 @@ Core implementation is feature-complete and production-ready. Convergence identi
 
 ### Test Coverage & Implementation Gaps
 
-- [ ] T049 Write comprehensive unit tests for `finfolio/cli.py`:
+- [x] T049 Write comprehensive unit tests for `finfolio/cli.py`:
   - Test `fetch` command initialization, lock management, channel processing loop
   - Test error handling: missing API key, locked fetch, channel failures
   - Test quota reporting in output
   - Test metadata integration: video metadata saved during fetch
   - Achieve >80% coverage on cli.py (currently 0/90 lines covered)
 
-- [ ] T050 Write comprehensive unit tests for `finfolio/config.py`:
+- [x] T050 Write comprehensive unit tests for `finfolio/config.py`:
   - Test env var loading (YOUTUBE_API_KEY) with/without .env file
   - Test channels.yaml parsing with valid/invalid YAML
   - Test error messages for missing/malformed config
   - Test channel validation (display_name, channel_id presence)
   - Achieve >80% coverage on config.py (currently 28/43 lines covered)
 
-- [ ] T051 Write comprehensive unit tests for `finfolio/youtube_client.py`:
+- [x] T051 Write comprehensive unit tests for `finfolio/youtube_client.py`:
   - Test quota unit tracking for search, caption.list, caption.download operations
   - Test API error handling (HttpError 404 for missing captions, rate limiting)
   - Test video metadata extraction from API response (title, published_at)
   - Test caption fetch with mock Google API client
   - Achieve >80% coverage on youtube_client.py (currently 23/44 lines covered)
 
-- [ ] T052 Write comprehensive unit tests for `finfolio/channel_monitor.py`:
+- [x] T052 Write comprehensive unit tests for `finfolio/channel_monitor.py`:
   - Test `check_channel()` video discovery with mock API responses
   - Test idempotency: videos with existing transcripts filtered out
   - Test error propagation from YouTube client
   - Test channel monitoring with zero new videos
   - Achieve >80% coverage on channel_monitor.py (currently 38/29 lines covered)
 
-- [ ] T053 Write comprehensive unit tests for `finfolio/transcript_fetcher.py`:
+- [x] T053 Write comprehensive unit tests for `finfolio/transcript_fetcher.py`:
   - Test `fetch_and_save()` success and error paths
   - Test `has_transcript()` file existence check
   - Test edge case: video with no available captions (returns False, doesn't crash)
   - Test `.tmp` file pattern during download
   - Achieve >80% coverage on transcript_fetcher.py (currently 33/30 lines covered)
 
-- [ ] T054 Implement channel-indexed video retrieval in storage module:
+- [x] T054 Implement channel-indexed video retrieval in storage module:
   - Add `get_videos_by_channel(channel_id: str) -> list[dict]` to storage.py
   - Supports future use case: listing all videos from a specific channel
   - Satisfies FR-021 (searchable index organized by channel)
   - Add corresponding unit test in test_storage.py
 
-- [ ] T055 Write integration test `tests/integration/test_channel_monitor.py`:
+- [x] T055 Write integration test `tests/integration/test_channel_monitor.py`:
   - Test full channel monitoring flow with mock YouTube API
   - Verify state file updated with last_fetch timestamp
   - Verify video metadata saved in state["videos"]
   - Test: new videos discovered, existing videos skipped (idempotency)
   - Use mock_youtube_client fixture from conftest.py
 
-- [ ] T056 Write integration test `tests/integration/test_transcript_fetcher.py`:
+- [x] T056 Write integration test `tests/integration/test_transcript_fetcher.py`:
   - Test transcript download + storage + state update integration
   - Verify metadata saved alongside transcript
   - Test idempotency: re-running fetch skips existing transcripts
   - Test: no captions scenario handled gracefully
   - Use mock_youtube_client fixture
 
-- [ ] T057 Write integration test `tests/integration/test_config_changes.py`:
+- [x] T057 Write integration test `tests/integration/test_config_changes.py`:
   - Test config reload on each run (no cached state across runs)
   - Test: adding new channel to channels.yaml and re-running fetch
   - Test: removing channel from channels.yaml (should skip, not error)
   - Test: modifying channel display_name (no impact on functionality)
   - Use temp_config_file fixture
 
-- [ ] T058 Write integration test `tests/integration/test_quota_logging.py`:
+- [x] T058 Write integration test `tests/integration/test_quota_logging.py`:
   - Test quota tracking and reporting after full fetch run
   - Verify quota breakdown in logs (search, caption.list, caption.download)
   - Test: quota accumulation over multiple runs
   - Test: graceful handling if quota exhausted (logs warning, stops)
   - Use mock YouTube client with controlled quota values
 
-- [ ] T059 Mark task checklist items as complete:
+- [x] T059 Mark task checklist items as complete:
   - T031/T046: ruff linting passes (all issues auto-fixed) ✓
   - T032/T047: mypy type checking passes ✓
   - All Phase 1-7 tasks (T001-T037): implementation complete ✓
