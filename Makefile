@@ -17,6 +17,9 @@ GREEN := \033[0;32m
 YELLOW := \033[0;33m
 NC := \033[0m # No Color
 
+# Python path for local development
+PYTHONPATH := $(PWD):$(PYTHONPATH)
+
 help: ## Show this help message
 	@echo "$(BLUE)FinFolio - YouTube Transcript Fetch Module$(NC)"
 	@echo ""
@@ -92,20 +95,20 @@ test: test-unit test-integration ## Run all tests
 
 test-unit: ## Run unit tests only
 	@echo "$(BLUE)Running unit tests...$(NC)"
-	$(PYTEST) $(TEST_DIR)/unit/ -v --cov=$(SRC_DIR) --cov-report=term-missing
+	PYTHONPATH=$(PYTHONPATH) $(PYTEST) $(TEST_DIR)/unit/ -v --cov=$(SRC_DIR) --cov-report=term-missing
 
 test-integration: ## Run integration tests only
 	@echo "$(BLUE)Running integration tests...$(NC)"
-	$(PYTEST) $(TEST_DIR)/integration/ -v
+	PYTHONPATH=$(PYTHONPATH) $(PYTEST) $(TEST_DIR)/integration/ -v
 
 test-coverage: ## Run tests with detailed coverage report
 	@echo "$(BLUE)Running tests with coverage report...$(NC)"
-	$(PYTEST) $(TEST_DIR)/ -v --cov=$(SRC_DIR) --cov-report=html --cov-report=term-missing
+	PYTHONPATH=$(PYTHONPATH) $(PYTEST) $(TEST_DIR)/ -v --cov=$(SRC_DIR) --cov-report=html --cov-report=term-missing
 	@echo "$(GREEN)✓ Coverage report generated: htmlcov/index.html$(NC)"
 
 test-fast: ## Run tests without coverage (faster)
 	@echo "$(BLUE)Running tests (fast mode)...$(NC)"
-	$(PYTEST) $(TEST_DIR)/ -v --no-cov
+	PYTHONPATH=$(PYTHONPATH) $(PYTEST) $(TEST_DIR)/ -v --no-cov
 
 test-watch: ## Run tests in watch mode (requires pytest-watch)
 	@echo "$(BLUE)Running tests in watch mode...$(NC)"
