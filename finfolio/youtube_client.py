@@ -1,6 +1,6 @@
 """YouTube Data API v3 wrapper for video discovery and caption fetching."""
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from googleapiclient.discovery import build
@@ -50,7 +50,7 @@ class YouTubeClient:
             return videos
         except HttpError as e:
             print(json.dumps({
-                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
                 "event": "api_error",
                 "status": "failed",
                 "channel_id": channel_id,
@@ -86,7 +86,7 @@ class YouTubeClient:
                 # No captions available
                 return None
             print(json.dumps({
-                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
                 "event": "caption_fetch_failed",
                 "status": "failed",
                 "video_id": video_id,

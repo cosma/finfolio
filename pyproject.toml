@@ -40,6 +40,10 @@ packages = ["finfolio"]
 testpaths = ["tests"]
 python_files = "test_*.py"
 addopts = "-v --cov=finfolio --cov-report=term-missing"
+markers = [
+    "unit: unit tests",
+    "integration: integration tests",
+]
 
 [tool.mypy]
 python_version = "3.11"

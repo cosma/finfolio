@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 def _log_config(event: str, status: str, **kwargs: Any) -> None:
     """Log configuration event as JSON."""
     log_entry = {
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "event": event,
         "status": status,
         **kwargs

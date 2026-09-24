@@ -1,7 +1,7 @@
 """Transcript fetching and storage."""
 import json
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from finfolio.youtube_client import YouTubeClient
@@ -10,7 +10,7 @@ from finfolio.youtube_client import YouTubeClient
 def _log_fetcher(event: str, status: str, **kwargs: Any) -> None:
     """Log fetcher operation as JSON."""
     log_entry = {
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "event": event,
         "status": status,
         **kwargs

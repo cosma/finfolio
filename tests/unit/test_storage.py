@@ -1,5 +1,5 @@
 """Unit tests for storage module."""
-from datetime import datetime
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
@@ -148,7 +148,7 @@ class TestChannelState:
             with patch("finfolio.storage.STATE_FILE", state_file):
                 with patch("finfolio.storage.TRANSCRIPTS_DIR", storage_dir / "transcripts"):
                     channel_id = "UCxxxxx"
-                    now = datetime.utcnow()
+                    now = datetime.now(UTC)
 
                     storage.update_channel_last_fetch(channel_id, now)
                     retrieved = storage.get_channel_last_fetch(channel_id)

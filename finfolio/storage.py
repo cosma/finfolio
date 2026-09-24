@@ -2,7 +2,7 @@
 import json
 import logging
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -16,7 +16,7 @@ LOCK_FILE = STORAGE_DIR / ".finfolio.lock"
 def _log_operation(event: str, status: str, **kwargs: Any) -> None:
     """Log structured JSON operation to stdout."""
     log_entry = {
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "event": event,
         "status": status,
         **kwargs
@@ -112,7 +112,7 @@ def update_channel_last_fetch(channel_id: str, timestamp: datetime) -> None:
     state = load_state()
     if "channels" not in state:
         state["channels"] = {}
-    state["channels"][channel_id] = {"last_fetch": timestamp.isoformat() + "Z"}
+    state["channels"][channel_id] = {"last_fetch": timestamp.isoformat().replace("+00:00", "Z")}
     save_state(state)
 
 

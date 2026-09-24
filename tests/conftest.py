@@ -1,6 +1,6 @@
 """Pytest fixtures for finfolio tests."""
 from collections.abc import Generator
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -47,13 +47,13 @@ def mock_youtube_client() -> MagicMock:
             "video_id": "dQw4w9WgXcQ",
             "title": "Sample Video 1",
             "channel_id": "UC7_ZLN2t-U-tZ7CgzQ0OoXw",
-            "published_at": datetime.utcnow().isoformat() + "Z",
+            "published_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         },
         {
             "video_id": "jNQXAC9IVRw",
             "title": "Sample Video 2",
             "channel_id": "UC7_ZLN2t-U-tZ7CgzQ0OoXw",
-            "published_at": (datetime.utcnow() - timedelta(days=1)).isoformat() + "Z",
+            "published_at": (datetime.now(UTC) - timedelta(days=1)).isoformat().replace("+00:00", "Z"),
         },
     ]
 
@@ -86,7 +86,7 @@ def sample_video_data() -> dict[str, Any]:
         "video_id": "dQw4w9WgXcQ",
         "title": "Sample Finance Video",
         "channel_id": "UC7_ZLN2t-U-tZ7CgzQ0OoXw",
-        "published_at": datetime.utcnow().isoformat() + "Z",
+        "published_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
     }
 
 
