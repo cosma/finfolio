@@ -1,0 +1,17 @@
+# YouTube Channels Configuration for FinFolio
+# Add financial YouTube channels to monitor for new videos and fetch transcripts
+#
+# Format:
+#   channels:
+#     - channel_id: "YOUTUBE_CHANNEL_ID"
+#       display_name: "Channel Display Name"
+#
+# Example:
+
+channels:
+  - channel_id: "UC7_ZLN2t-U-tZ7CgzQ0OoXw"
+    display_name: "Graham Stephan"
+  - channel_id: "UC_x5XG1OV2P6uZZ5FSM9Ttw"
+    display_name: "Two Cents"
+  - channel_id: "UCF1DiS9jhNXqxPfj7pEj2lg"
+    display_name: "Andrei Jikh"

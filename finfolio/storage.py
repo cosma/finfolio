@@ -1,9 +1,10 @@
 """Filesystem abstraction for transcript and state storage."""
 import json
 import logging
+import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 
 logger = logging.getLogger(__name__)
@@ -14,14 +15,15 @@ LOCK_FILE = STORAGE_DIR / ".finfolio.lock"
 
 
 def _log_operation(event: str, status: str, **kwargs: Any) -> None:
-    """Log structured JSON operation."""
+    """Log structured JSON operation to stdout."""
     log_entry = {
         "timestamp": datetime.utcnow().isoformat() + "Z",
         "event": event,
         "status": status,
         **kwargs
     }
-    print(json.dumps(log_entry))
+    print(json.dumps(log_entry, default=str))
+    sys.stdout.flush()
 
 
 def ensure_storage_dir() -> None:
@@ -115,7 +117,7 @@ def update_channel_last_fetch(channel_id: str, timestamp: datetime) -> None:
     save_state(state)
 
 
-def get_channel_last_fetch(channel_id: str) -> datetime | None:
+def get_channel_last_fetch(channel_id: str) -> Optional[datetime]:
     """Get last-fetch timestamp for a channel."""
     state = load_state()
     if "channels" not in state or channel_id not in state["channels"]:
