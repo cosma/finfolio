@@ -1,7 +1,7 @@
 """Channel monitoring for discovering new videos."""
 import json
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from finfolio.storage import has_transcript
@@ -11,7 +11,7 @@ from finfolio.youtube_client import YouTubeClient
 def _log_monitor(event: str, status: str, **kwargs: Any) -> None:
     """Log monitor operation as JSON."""
     log_entry = {
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "event": event,
         "status": status,
         **kwargs

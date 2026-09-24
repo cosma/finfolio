@@ -1,7 +1,7 @@
 """CLI entry point for finfolio fetch command."""
 import json
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 
 import click
 
@@ -15,7 +15,7 @@ from finfolio.youtube_client import YouTubeClient
 def _log_event(event: str, status: str, **kwargs) -> None:
     """Log CLI event as JSON."""
     log_entry = {
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "event": event,
         "status": status,
         **kwargs
@@ -105,6 +105,14 @@ def fetch(ctx: click.Context) -> None:
                         if not video_id:
                             continue
 
+                        # Save video metadata for easy reference
+                        storage.save_video_metadata(
+                            video_id=video_id,
+                            title=video.get("title", "Unknown"),
+                            channel_id=channel_id,
+                            published_at=video.get("published_at", "")
+                        )
+
                         if transcript_fetcher.has_transcript(video_id):
                             _log_event("download_transcript", "skipped", video_id=video_id,
                                       reason="already_exists")
@@ -121,7 +129,7 @@ def fetch(ctx: click.Context) -> None:
                                           error=str(e))
 
                     # Update last fetch timestamp
-                    storage.update_channel_last_fetch(channel_id, datetime.utcnow())
+                    storage.update_channel_last_fetch(channel_id, datetime.now(UTC))
 
                 except Exception as e:
                     _log_event("fetch_channel", "failed", channel_id=channel_id,

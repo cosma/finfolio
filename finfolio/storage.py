@@ -126,3 +126,26 @@ def get_channel_last_fetch(channel_id: str) -> datetime | None:
         # Parse ISO format timestamp
         return datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
     return None
+
+
+def save_video_metadata(video_id: str, title: str, channel_id: str, published_at: str) -> None:
+    """Save video metadata to state file for easy reference and linking."""
+    state = load_state()
+    if "videos" not in state:
+        state["videos"] = {}
+    state["videos"][video_id] = {
+        "title": title,
+        "channel_id": channel_id,
+        "published_at": published_at,
+        "url": f"https://www.youtube.com/watch?v={video_id}"
+    }
+    save_state(state)
+    _log_operation("video_metadata_saved", "success", video_id=video_id, title=title)
+
+
+def get_video_metadata(video_id: str) -> dict[str, Any] | None:
+    """Retrieve video metadata from state file."""
+    state = load_state()
+    if "videos" not in state or video_id not in state["videos"]:
+        return None
+    return state["videos"][video_id]

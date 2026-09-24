@@ -9,6 +9,10 @@
 # Example:
 
 channels:
+  - channel_id: "UC7kCeZ53sli_9XwuQeFxLqw"
+    display_name: "Ticker Symbol YOU"
+  - channel_id: "Tom Crosshill EU"
+    display_name: "thetomcrosshill"
   - channel_id: "UC7_ZLN2t-U-tZ7CgzQ0OoXw"
     display_name: "Graham Stephan"
   - channel_id: "UC_x5XG1OV2P6uZZ5FSM9Ttw"

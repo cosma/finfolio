@@ -117,6 +117,8 @@ An operator maintains a channels.yaml file listing ~10 YouTube financial/investm
 - **FR-017**: System MUST handle videos with no available captions gracefully (log as unavailable, skip)
 - **FR-018**: System MUST create the storage/transcripts/ directory if it does not exist
 - **FR-019**: System MUST validate channels.yaml syntax on load and report configuration errors clearly
+- **FR-020**: System MUST store video metadata in state file (`storage/.finfolio-state.json`) including: video ID, title, YouTube URL, published date, and channel ID for each fetched video
+- **FR-021**: System MUST maintain a searchable index of fetched videos in state file organized by channel for easy reference and linking back to YouTube
 
 ### Key Entities
 
@@ -135,6 +137,7 @@ An operator maintains a channels.yaml file listing ~10 YouTube financial/investm
 - **SC-005**: Non-critical failures (missing captions for one video, one channel unreachable) do not block processing of other channels; full run completes with logged warnings
 - **SC-006**: Operator can add/remove channels by editing channels.yaml only; no code recompilation or deployment needed
 - **SC-007**: All transcript files are readable as plain text UTF-8 and contain complete captions in chronological order
+- **SC-008**: State file contains complete metadata for all fetched videos including title, URL, and published date; operator can easily construct YouTube links to watch videos
 
 ## Assumptions
 
