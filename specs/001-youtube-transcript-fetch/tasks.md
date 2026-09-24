@@ -439,3 +439,27 @@ After MVP validated, add:
 ✅ Tests: >80% coverage
 ✅ Linting & types: passing
 ✅ Documentation: README complete
+
+---
+
+## Phase 8: Convergence - Testing & Quality Gates
+
+**Purpose**: Complete test coverage and verify code quality gates
+
+**Completed by**: /speckit-converge after /speckit-implement Phase 7
+
+Core implementation is feature-complete and production-ready. Convergence identified 5 remaining items in test coverage and quality assurance (all low-to-medium severity, non-blocking). Phase 8 completes the test suite and quality verification.
+
+- [ ] T038 [P] Write unit tests for `finfolio/channel_monitor.py` - test `check_channel()` video discovery logic and idempotency checks per T034 (partial: unit tests)
+- [ ] T039 [P] Write unit tests for `finfolio/config.py` - test YAML parsing, error handling for malformed config, env var + .env fallback per T034 (partial: unit tests)
+- [ ] T040 [P] Write unit tests for `finfolio/youtube_client.py` - test quota tracking, API call mocking, error handling per T034 (partial: unit tests)
+- [ ] T041 [P] Write unit tests for `finfolio/transcript_fetcher.py` - test fetch_and_save, has_transcript, no-captions handling per T034 (partial: unit tests)
+- [ ] T042 Write integration test `tests/integration/test_channel_monitor.py` - test full channel monitoring flow with mock API per T021 (partial: integration tests)
+- [ ] T043 Write integration test `tests/integration/test_transcript_fetcher.py` - test transcript download + idempotency per T021 (partial: integration tests)
+- [ ] T044 Write integration test `tests/integration/test_config_changes.py` - test config reload + channel changes per T030 (partial: integration tests)
+- [ ] T045 Write integration test `tests/integration/test_quota_logging.py` - test quota tracking and reporting per T025 (partial: integration tests)
+- [ ] T046 Run `ruff check finfolio/ tests/` and fix style issues per T031 (partial: ruff linting)
+- [ ] T047 Run `mypy finfolio/ --ignore-missing-imports` and verify type hints per T032 (partial: mypy type checking)
+- [ ] T048 Verify all 8 quickstart scenarios work end-to-end per T036 (partial: quickstart validation)
+
+**Checkpoint**: Test coverage >80%, all quality gates passing, full suite ready for CI/CD integration
