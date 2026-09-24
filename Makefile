@@ -49,14 +49,12 @@ help: ## Show this help message
 
 install: ## Install production dependencies with uv
 	@echo "$(BLUE)Installing production dependencies...$(NC)"
-	$(UV) pip install click "google-api-python-client>=2.100.0" pyyaml "python-dotenv>=1.0.0"
-	$(UV) pip install -e .
+	$(UV) sync --no-dev
 	@echo "$(GREEN)✓ Dependencies installed$(NC)"
 
 dev: ## Install all dependencies including dev tools
 	@echo "$(BLUE)Installing all dependencies (production + dev)...$(NC)"
 	$(UV) sync
-	$(UV) pip install -e .
 	@echo "$(GREEN)✓ All dependencies installed$(NC)"
 
 config: ## Create .env file from template
