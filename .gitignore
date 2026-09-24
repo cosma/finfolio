@@ -223,3 +223,8 @@ storage/
 .finfolio-state.json
 *.tmp
 channels.yaml
+
+# Service account credentials (NEVER commit)
+*-key.json
+*service-account*.json
+google-credentials.json

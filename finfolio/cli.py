@@ -7,7 +7,7 @@ import click
 
 from finfolio import storage
 from finfolio.channel_monitor import ChannelMonitor
-from finfolio.config import load_api_key, load_config
+from finfolio.config import load_credentials, load_config
 from finfolio.transcript_fetcher import TranscriptFetcher
 from finfolio.youtube_client import YouTubeClient
 
@@ -42,9 +42,9 @@ def fetch(ctx: click.Context) -> None:
     try:
         _log_event("fetch_start", "success")
 
-        # Load API key
+        # Load service account credentials
         try:
-            api_key = load_api_key()
+            credentials = load_credentials()
         except ValueError as e:
             _log_event("fetch_failed", "failed", error=str(e))
             sys.exit(1)
@@ -65,8 +65,8 @@ def fetch(ctx: click.Context) -> None:
             sys.exit(2)
 
         try:
-            # Initialize clients
-            youtube_client = YouTubeClient(api_key)
+            # Initialize clients with service account credentials
+            youtube_client = YouTubeClient(credentials)
             channel_monitor = ChannelMonitor(youtube_client)
             transcript_fetcher = TranscriptFetcher(youtube_client, storage)
 

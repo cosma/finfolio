@@ -6,11 +6,19 @@
 
 **Status**: Draft
 
-**Input**: Build the channel monitoring and transcript ingestion module for FinFolio. Maintain a channels.yaml config file listing about 10 YouTube financial/investment advisor channels (channel ID and display name), editable without touching code. Check each configured channel daily for new videos, using the YouTube Data API v3 search endpoint (roughly 2-3 new videos per channel per week expected). For each new video not already present in storage/transcripts/, fetch its caption track via the YouTube Data API v3 captions().list and captions().download endpoints and write the raw transcript to storage/transcripts/{video_id}.txt. Skip videos whose transcript file already exists, so runs are idempotent and safe to repeat daily. Log YouTube API quota usage per run. Expose this as a CLI command, e.g. finfolio fetch, that can be triggered manually or on a schedule. Out of scope for this module: summarization, fact-checking, and anything downstream of raw transcript storage.
+**Input**: Build the channel monitoring and transcript ingestion module for FinFolio. Maintain a channels.yaml config file listing about 10 YouTube financial/investment advisor channels (channel ID and display name), editable without touching code. Check each configured channel daily for new videos, using the YouTube Data API v3 search endpoint (roughly 2-3 new videos per channel per week expected). For each new video not already present in storage/transcripts/, fetch its captions using the official YouTube Data API v3 captions().list and captions().download endpoints and write the transcript to storage/transcripts/{video_id}.txt with timestamp markers at each caption segment in the format "MM:SS" so that fact-checking summaries can link back to specific moments in the video via YouTube timestamps (e.g., youtu.be/VIDEO_ID?t=90). Skip videos whose transcript file already exists, so runs are idempotent and safe to repeat daily. Log YouTube API quota usage per run. Authenticate using a service account (OAuth2 with JSON credentials file) to comply with Constitution Principle VI (official YouTube Data API v3 only). Expose this as a CLI command, e.g. finfolio fetch, that can be triggered manually or on a schedule. Out of scope for this module: summarization, fact-checking, and anything downstream of raw transcript storage.
 
 ## Clarifications
 
-### Session 2026-09-24
+### Session 2026-09-24 (Timestamp Feature & Constitution Compliance)
+
+**Constitutional Compliance Clarifications**:
+- Q: Is using `youtube-transcript-api` (a community library) compliant with FinFolio Constitution Principle VI (official YouTube Data API v3 only)?
+  → A: No. Use official YouTube Data API v3 captions endpoints exclusively. Service account OAuth2 is the correct authentication model to avoid API key limitations.
+- Q: Should service account OAuth2 setup be in-scope for this feature?
+  → A: Yes. Include credential setup tasks and documentation so the feature is Constitution-compliant and production-ready from day one.
+
+**Earlier Clarifications (from prior session)**:
 
 - Q: How should the system track "new videos since last run"? → A: Store state file (`storage/.finfolio-state.json`) with last-fetch timestamp per channel + always check file existence before download (hybrid approach for both efficiency and safety)
 - Q: What format and destination should logs use? → A: Structured JSON logs to stdout with optional file rotation
@@ -37,20 +45,22 @@ A FinFolio operator configures a set of YouTube financial channels in channels.y
 
 ---
 
-### User Story 2 - Fetch and store transcripts (Priority: P1)
+### User Story 2 - Fetch and store transcripts with timestamps (Priority: P1)
 
-For each new video identified, the system automatically fetches its captions using YouTube Data API v3 captions endpoints and writes the raw transcript to storage. Transcripts persist on disk in a predictable location for downstream processing (summarization, fact-checking, indexing).
+For each new video identified, the system automatically fetches its transcript using youtube-transcript-api and writes it to storage with timestamp markers. Each caption segment is prefixed with its timestamp in MM:SS format, enabling fact-checking workflows to link back to specific moments in the video. Transcripts persist on disk in a predictable location for downstream processing (summarization, fact-checking, indexing).
 
-**Why this priority**: Transcript retrieval is the core data collection mechanism. Without reliable transcript storage, the fact-checking pipeline has no input. This must work before any analysis features can be built.
+**Why this priority**: Transcript retrieval is the core data collection mechanism. Without reliable transcript storage with timestamps, operators cannot link fact-check findings back to the source video for verification. This must work before any analysis features can be built.
 
-**Independent Test**: Can be fully tested by providing a known video ID, running fetch, and verifying that the transcript file exists at the expected path with correct content. Delivers persistent transcript storage.
+**Independent Test**: Can be fully tested by providing a known video ID, running fetch, and verifying that the transcript file exists at the expected path with correct content and timestamp markers. Delivers persistent, timestamped transcript storage.
 
 **Acceptance Scenarios**:
 
-1. **Given** a new video ID identified by the monitor, **When** `finfolio fetch` is executed, **Then** the system fetches captions from YouTube Data API v3 and writes the raw transcript to storage/transcripts/{video_id}.txt
-2. **Given** a video that already has a transcript file, **When** `finfolio fetch` is executed again, **Then** the system skips that video (idempotent, no re-download)
-3. **Given** a video without available captions on YouTube, **When** `finfolio fetch` is executed, **Then** the system logs this as "no transcript available" and skips to the next video without crashing
-4. **Given** the transcript file for a video, **When** the file is read, **Then** it contains the raw caption text in chronological order
+1. **Given** a new video ID identified by the monitor, **When** `finfolio fetch` is executed, **Then** the system fetches the transcript and writes it to storage/transcripts/{video_id}.txt with timestamp markers
+2. **Given** a transcript file, **When** the file is read, **Then** each caption segment is prefixed with a timestamp in MM:SS format (e.g., "00:45 This is the caption text")
+3. **Given** a fact-checker reviewing a transcript, **When** they identify a claim at timestamp 02:30, **Then** they can construct a YouTube link (youtu.be/VIDEO_ID?t=150) to jump directly to that moment
+4. **Given** a video that already has a transcript file, **When** `finfolio fetch` is executed again, **Then** the system skips that video (idempotent, no re-download)
+5. **Given** a video without available transcripts on YouTube, **When** `finfolio fetch` is executed, **Then** the system logs this as "no transcript available" and skips to the next video without crashing
+6. **Given** the transcript file for a video, **When** the file is read, **Then** it contains the caption text in chronological order with accurate timestamps
 
 ---
 
@@ -98,7 +108,7 @@ An operator maintains a channels.yaml file listing ~10 YouTube financial/investm
 
 ### Functional Requirements
 
-- **FR-001**: System MUST read YouTube Data API key from either the `YOUTUBE_API_KEY` environment variable or a `.env` file on startup; if missing from both sources, log a warning and exit with error code
+- **FR-001**: System MUST read service account credentials from the `GOOGLE_APPLICATION_CREDENTIALS` environment variable on startup; if missing, log a warning and exit with error code. Credentials must be a valid service account JSON key file with YouTube Data API v3 enabled
 - **FR-002**: System MUST establish an exclusive lock (`storage/.finfolio.lock`) at startup; if another fetch process holds the lock, exit with error "Another fetch is running, please try again later"
 - **FR-003**: System MUST release the lock file when the fetch completes (success or failure) to allow subsequent runs
 - **FR-004**: System MUST read channel configuration from channels.yaml on startup (channel ID, display name)
@@ -108,10 +118,11 @@ An operator maintains a channels.yaml file listing ~10 YouTube financial/investm
 - **FR-008**: System MUST skip videos whose transcript file already exists (idempotent behavior)
 - **FR-009**: System MUST download transcripts using temporary `.tmp` files and rename to final name only after successful completion
 - **FR-010**: System MUST clean up any leftover `.tmp` files on startup (from interrupted previous runs)
-- **FR-011**: System MUST fetch captions using YouTube Data API v3 captions().list and captions().download endpoints for new videos
-- **FR-012**: System MUST write raw transcript to storage/transcripts/{video_id}.txt with UTF-8 encoding
+- **FR-011**: System MUST fetch captions using YouTube Data API v3 captions().list and captions().download endpoints (official API, Constitution Principle VI compliant). YouTube's captions API returns caption timing data for each segment
+- **FR-012**: System MUST write transcript to storage/transcripts/{video_id}.txt with timestamp markers in MM:SS format, with each caption segment prefixed by its timestamp (format: "MM:SS Caption text here")
+- **FR-012a**: System MUST preserve accurate timestamps from the transcript source so that fact-checkers can construct YouTube links (youtu.be/VIDEO_ID?t=SECONDS) to jump to specific moments in the video
 - **FR-013**: System MUST log all operations as structured JSON to stdout (one object per line) including: timestamp, operation type, status, video/channel IDs, and quota units consumed
-- **FR-014**: System MUST log YouTube Data API quota usage per run (total units consumed and breakdown by operation type: search, caption.list, caption.download)
+- **FR-014**: System MUST log API usage per run (quota tracking applies only to YouTube Data API v3 search operations; transcript fetching via youtube-transcript-api does not consume YouTube API quota)
 - **FR-015**: System MUST expose a CLI command `finfolio fetch` that can be invoked manually or scheduled
 - **FR-016**: System MUST continue processing other channels if one channel's API call fails
 - **FR-017**: System MUST handle videos with no available captions gracefully (log as unavailable, skip)
@@ -133,11 +144,13 @@ An operator maintains a channels.yaml file listing ~10 YouTube financial/investm
 - **SC-001**: System fetches new transcripts for all configured channels (expect 2-3 new videos per channel per week) without manual intervention
 - **SC-002**: System completes a full fetch run on 10 channels in under 5 minutes (includes API calls and transcript storage, assuming no rate limiting)
 - **SC-003**: System runs are fully idempotent: repeating `finfolio fetch` twice in succession fetches zero transcripts the second time (all new videos from first run are already stored)
-- **SC-004**: YouTube Data API quota usage is logged and stays well under the 10,000-unit daily ceiling (target: 50-100 units per run on 10 channels)
-- **SC-005**: Non-critical failures (missing captions for one video, one channel unreachable) do not block processing of other channels; full run completes with logged warnings
+- **SC-004**: YouTube Data API quota usage for search operations is logged; transcript fetching does not consume YouTube API quota (uses youtube-transcript-api instead)
+- **SC-005**: Non-critical failures (missing transcripts for one video, one channel unreachable) do not block processing of other channels; full run completes with logged warnings
 - **SC-006**: Operator can add/remove channels by editing channels.yaml only; no code recompilation or deployment needed
-- **SC-007**: All transcript files are readable as plain text UTF-8 and contain complete captions in chronological order
+- **SC-007**: All transcript files are readable as plain text UTF-8 and contain complete captions in chronological order with accurate timestamp markers (MM:SS format)
 - **SC-008**: State file contains complete metadata for all fetched videos including title, URL, and published date; operator can easily construct YouTube links to watch videos
+- **SC-009**: Fact-checkers can extract transcript segments with timestamps and construct jump-to-time YouTube links (youtu.be/VIDEO_ID?t=SECONDS) for direct video verification
+- **SC-010**: Timestamp accuracy allows fact-checkers to resume transcript review from specific points and link fact-check findings back to source video moments
 
 ## Assumptions
 
@@ -145,13 +158,40 @@ An operator maintains a channels.yaml file listing ~10 YouTube financial/investm
 - **Scope**: This module covers monitoring + transcript ingestion only. Summarization, fact-checking, report generation, and any downstream processing are explicitly out of scope
 - **Trigger Mechanism**: `finfolio fetch` is triggered manually via CLI or via an external scheduler (cron, GitHub Actions, etc.). This module does not implement scheduling itself
 - **Channel List**: Starting with ~10 channels; the system should handle up to 50+ channels without significant performance degradation
-- **Transcript Format**: Raw captions from YouTube are stored as-is; no cleaning, normalization, or deduplication of overlapping captions is performed in this module
+- **Transcript Format**: Transcripts are fetched via official YouTube Data API v3 captions().download endpoint. Captions include timing data for each segment. Transcripts are stored with timestamp markers (MM:SS format) prefixing each caption segment to enable fact-checkers to link findings back to specific moments in the video. No cleaning, normalization, or deduplication of overlapping captions is performed in this module; raw caption text structure from YouTube is preserved with timing markers added
 - **Error Recovery**: Failed API calls (e.g., rate limits, network errors) are logged but do not trigger retries within the same run; a future scheduled run will retry automatically
 - **Configuration Format**: channels.yaml is a simple YAML file with channel entries; no environment-specific overrides or profile selection are needed
-- **API Credentials**: YouTube Data API key is read from either the `YOUTUBE_API_KEY` environment variable or a `.env` file; the module assumes credentials are valid and have sufficient quota; `.env` must be in `.gitignore` and never committed to version control; operators may use environment variables for production (e.g., GitHub Secrets) and `.env` for local development
+- **API Credentials**: YouTube Data API uses service account authentication (OAuth2 with JSON credentials file), not API keys. The service account key file is read from the `GOOGLE_APPLICATION_CREDENTIALS` environment variable (standard GCP practice). The module assumes: (1) credentials file exists and is valid, (2) service account has YouTube Data API v3 enabled, (3) credentials file is in `.gitignore` and never committed to version control, (4) operators use environment variables for production (GitHub Secrets, cloud deployment) and local file paths for development. A setup guide is provided for generating and configuring service account credentials
 - **Concurrent Execution Safety**: Only one `finfolio fetch` process can run at a time; exclusivity is enforced via a lock file (`storage/.finfolio.lock`); if a process is already running, new invocations exit immediately with an error message
-- **Constitution Compliance**: All API calls use official YouTube Data API v3 (Principle VI: Reliability Over Cleverness); no HTML scraping or unofficial endpoints are used
+- **Constitution Compliance**: All YouTube data (search, captions) uses the official YouTube Data API v3 exclusively, complying with FinFolio Constitution Principle VI (no scraping, official API only). Authentication uses a service account with OAuth2 credentials (JSON key file), not an API key. This approach: (1) maintains strict Constitution compliance, (2) avoids API key limitations (captions endpoint requires OAuth2), (3) provides a secure, production-grade credential model for long-term operations
 - **State Persistence**: Last-fetch timestamp per channel is stored in `storage/.finfolio-state.json` to enable efficient delta queries (only fetching videos published since the last run). This state file is created automatically on first run
 - **Idempotency Strategy**: Idempotency is enforced by a two-layer check: (1) state file tracks last fetch time per channel to avoid re-querying, and (2) file existence check before download ensures transcripts are never re-downloaded even if state is lost
 - **Logging Format**: All logs are output as structured JSON (one object per line) to stdout, enabling machine-readable parsing by monitoring tools and log aggregators. Optional file rotation can be configured by redirecting stdout
 - **Partial File Handling**: Downloads use a temporary `.tmp` extension; the file is renamed to its final name only after successful completion. On startup, any leftover `.tmp` files are deleted to clean up incomplete downloads from interrupted runs
+
+## Transcript Format Specification
+
+Transcripts are stored in UTF-8 text files at `storage/transcripts/{video_id}.txt` with timestamp markers in MM:SS format prefixing each caption segment.
+
+### Example Format
+
+```
+00:00 Welcome to this video on investment strategies.
+00:05 Today we'll discuss three key principles.
+00:12 First, diversification is critical for long-term success.
+01:30 Many investors make the mistake of over-concentrating.
+02:15 Let me show you an example with NVIDIA stock.
+03:45 As you can see from this chart, the growth potential is significant.
+04:20 However, there are also risks to consider.
+```
+
+### Usage for Fact-Checking
+
+When a fact-checker extracts a claim from the transcript (e.g., "NVIDIA stock growth is significant at 03:45"), they can:
+
+1. Note the timestamp from the transcript (03:45)
+2. Convert to seconds for YouTube URL: 03:45 = 3*60 + 45 = 225 seconds
+3. Construct the jump-to-time YouTube link: `https://youtu.be/{video_id}?t=225`
+4. Click the link to verify the claim directly in the video
+
+This enables seamless linking between fact-check summaries and source video moments for verification and review.

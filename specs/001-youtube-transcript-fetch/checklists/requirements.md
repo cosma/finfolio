@@ -35,15 +35,22 @@
 
 **Validation Summary**: All checklist items pass. Specification is complete, requirements are testable and unambiguous, and success criteria are measurable and technology-agnostic.
 
-**Clarifications Integrated (Session 2026-09-24)**:
+**Clarifications Integrated (Session 2026-09-24, Part 1 - Transcript Feature)**:
 - State persistence: Last-fetch timestamp stored in `storage/.finfolio-state.json` + file existence double-check
 - Logging format: Structured JSON to stdout (one object per line)
 - Partial file handling: Download using `.tmp` extension, rename on success, cleanup on startup
-- API credential security: Support both `YOUTUBE_API_KEY` environment variable and `.env` config file; `.env` must be in `.gitignore` and never committed
+- API credential security: API key does not work with captions endpoint; service account OAuth2 required
 - Concurrent execution safety: Use lock file (`storage/.finfolio.lock`) to prevent concurrent runs; exit with error if another process is running
+- Timestamp-based transcript storage: MM:SS format enables fact-checkers to construct YouTube jump-links (youtu.be/VIDEO_ID?t=SECONDS)
+
+**Clarifications Integrated (Session 2026-09-24, Part 2 - Constitution Compliance)**:
+- Constitutional mandate: All YouTube data (search, captions) MUST use official YouTube Data API v3 (Principle VI, no scraping)
+- Authentication model: Service account OAuth2 with JSON credentials file (GOOGLE_APPLICATION_CREDENTIALS env var) per GCP standard practices
+- Scope decision: Service account setup is in-scope for this feature to ensure Constitution compliance from day one
+- Documentation: Setup guide provides step-by-step instructions for operators to generate and configure service account credentials
 
 **Key Alignments with Constitution**:
-- Principle VI (Reliability Over Cleverness): Spec mandates YouTube Data API v3 only, no HTML scraping
-- Principle VII (Resource & Cost Discipline): Quota tracking and 10,000-unit daily ceiling monitoring are required
+- Principle VI (Reliability Over Cleverness): Spec mandates YouTube Data API v3 for ALL data (search, captions); service account is the production-grade authentication model for official API
+- Principle VII (Resource & Cost Discipline): Quota tracking for all operations (search, caption.list, caption.download) toward 10,000-unit daily ceiling monitoring
 
 **Ready for**: `/speckit-plan`
