@@ -1,20 +1,22 @@
-"""YouTube Data API v3 wrapper for video discovery and caption fetching."""
+"""YouTube Data API v3 wrapper for video discovery and transcript fetching."""
 import json
 from datetime import UTC, datetime
 from typing import Any
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api.formatters import TextFormatter
 
 
 class YouTubeClient:
-    """Client for YouTube Data API v3 interactions."""
+    """Client for YouTube Data API v3 and transcript fetching."""
 
     def __init__(self, api_key: str) -> None:
         """Initialize YouTube API client."""
         self.api_key = api_key
         self.youtube = build("youtube", "v3", developerKey=api_key)
-        self.quota_used = {"search": 0, "caption.list": 0, "caption.download": 0}
+        self.quota_used = {"search": 0}
 
     def search_channel_videos(
         self, channel_id: str, after_timestamp: datetime | None = None
@@ -59,41 +61,26 @@ class YouTubeClient:
             raise
 
     def fetch_captions(self, video_id: str) -> str | None:
-        """Fetch captions for a video."""
+        """Fetch transcript for a video."""
         try:
-            # List available captions
-            captions_list = self.youtube.captions().list(
-                part="snippet",
-                videoId=video_id,
-            ).execute()
-            self.quota_used["caption.list"] += 50
+            # Fetch transcript using youtube-transcript-api
+            transcript = YouTubeTranscriptApi.get_transcript(video_id)
 
-            items = captions_list.get("items", [])
-            if not items:
-                return None
-
-            # Download first available caption
-            caption_id = items[0]["id"]
-            caption_track = self.youtube.captions().download(
-                id=caption_id,
-                tfmt="srt",  # SubRip format for text-based captions
-            ).execute()
-            self.quota_used["caption.download"] += 200
-
-            return caption_track.decode("utf-8") if isinstance(caption_track, bytes) else caption_track
-        except HttpError as e:
-            if e.resp.status == 404:
-                # No captions available
-                return None
+            # Format transcript as plain text
+            formatter = TextFormatter()
+            text_transcript = formatter.format_transcript(transcript)
+            return text_transcript
+        except Exception as e:
+            # No transcript available or fetch failed
             print(json.dumps({
                 "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
-                "event": "caption_fetch_failed",
+                "event": "transcript_fetch_failed",
                 "status": "failed",
                 "video_id": video_id,
                 "error": str(e)
             }))
-            raise
+            return None
 
     def get_quota_units_used(self) -> dict[str, int]:
-        """Get total quota units consumed."""
+        """Get total quota units consumed (search only, transcripts don't use quota)."""
         return self.quota_used.copy()
