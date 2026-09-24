@@ -43,12 +43,12 @@ docs/SERVICE_ACCOUNT_SETUP.md  # Service account setup guide
 
 **Purpose**: Create project structure and configure dependencies
 
-- [ ] T001 Initialize pyproject.toml with Python 3.11+ requirements and dependencies (Click, google-api-python-client, google-auth, pyyaml)
-- [ ] T002 Create finfolio/ package directory structure: `__init__.py`, `cli.py`, `config.py`, `storage.py`, `youtube_client.py`, `channel_monitor.py`, `transcript_fetcher.py`
-- [ ] T003 [P] Create tests/ directory with `conftest.py`, `unit/`, `integration/` subdirectories
-- [ ] T004 [P] Set up .gitignore: exclude service account JSON key files, `.env`, `*.pyc`, `__pycache__`, `venv/`, `storage/`, `.pytest_cache`
-- [ ] T005 [P] Create `channels.yaml` template with example channel entries (format: `channel_id` and `display_name`)
-- [ ] T006 [P] Configure ruff linting in pyproject.toml with finfolio-specific rules
+- [x] T001 Initialize pyproject.toml with Python 3.11+ requirements and dependencies (Click, google-api-python-client, google-auth, pyyaml)
+- [x] T002 Create finfolio/ package directory structure: `__init__.py`, `cli.py`, `config.py`, `storage.py`, `youtube_client.py`, `channel_monitor.py`, `transcript_fetcher.py`
+- [x] T003 [P] Create tests/ directory with `conftest.py`, `unit/`, `integration/` subdirectories
+- [x] T004 [P] Set up .gitignore: exclude service account JSON key files, `.env`, `*.pyc`, `__pycache__`, `venv/`, `storage/`, `.pytest_cache`
+- [x] T005 [P] Create `channels.yaml` template with example channel entries (format: `channel_id` and `display_name`)
+- [x] T006 [P] Configure ruff linting in pyproject.toml with finfolio-specific rules
 
 ---
 
@@ -58,7 +58,7 @@ docs/SERVICE_ACCOUNT_SETUP.md  # Service account setup guide
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is 100% complete
 
-- [ ] T007 Implement `finfolio/storage.py` module with:
+- [x] T007 Implement `finfolio/storage.py` module with:
   - `save_transcript(video_id: str, text: str) -> None` — write to `storage/transcripts/{video_id}.txt` with `.tmp` pattern (atomic writes)
   - `has_transcript(video_id: str) -> bool` — check file existence
   - `ensure_storage_dir() -> None` — create `storage/transcripts/` if missing
@@ -70,7 +70,7 @@ docs/SERVICE_ACCOUNT_SETUP.md  # Service account setup guide
   - `get_video_metadata(video_id: str) -> dict | None` — retrieve video metadata
   - All functions include structured JSON logging via `_log_operation()`
 
-- [ ] T008 Implement `finfolio/youtube_client.py` module with:
+- [x] T008 Implement `finfolio/youtube_client.py` module with:.py` module with:
   - `YouTubeClient` class constructor: accepts service account credentials (via google.auth library)
   - `search_channel_videos(channel_id: str, after_timestamp: datetime | None) -> list` — call YouTube API v3 search().list, return video IDs and metadata
   - `fetch_captions(video_id: str) -> str | None` — call official YouTube API v3 captions().list and captions().download, extract timing data, format as "MM:SS caption text", return formatted transcript or None if unavailable
@@ -78,19 +78,19 @@ docs/SERVICE_ACCOUNT_SETUP.md  # Service account setup guide
   - Quota accounting for each API call (YouTube API reports units in response metadata)
   - Structured JSON logging for all API operations
 
-- [ ] T009 Implement `finfolio/config.py` module with:
+- [x] T009 Implement `finfolio/config.py` module with:.py` module with:
   - `load_config(config_path: str) -> list` — parse `channels.yaml`, return list of dicts with `channel_id` and `display_name`
   - `load_credentials() -> google.auth.service_account.Credentials` — read service account JSON from `GOOGLE_APPLICATION_CREDENTIALS` env var; raise error if missing or invalid
   - Structured JSON logging for config load events
   - Error handling for malformed YAML and invalid credentials
 
-- [ ] T010 Implement `finfolio/cli.py` module with:
+- [x] T010 Implement `finfolio/cli.py` module with:.py` module with:
   - Click CLI setup with `@click.group()` decorator
   - Global options: `--config` for channels.yaml path (default: `./channels.yaml`)
   - Error handling and exit codes (0=success, 1=error, 2=locked)
   - Structured JSON logging to stdout (one object per line)
 
-- [ ] T011 Create pytest fixtures in `tests/conftest.py`:
+- [x] T011 Create pytest fixtures in `tests/conftest.py`:
   - `mock_youtube_client` — mock GoogleAPIClient with predefined search/captions responses
   - `temp_storage_dir` — temporary directory for `storage/` during tests
   - `temp_config_file` — temporary `channels.yaml` for tests
@@ -108,18 +108,18 @@ docs/SERVICE_ACCOUNT_SETUP.md  # Service account setup guide
 
 ### Implementation for User Story 1
 
-- [ ] T012 [P] [US1] Implement `finfolio/channel_monitor.py` module with:
+- [x] T012 [P] [US1] Implement `finfolio/channel_monitor.py` module with:.py` module with:
   - `ChannelMonitor` class with `__init__(youtube_client, storage)`
   - `check_channel(channel_id: str, display_name: str, last_fetch: datetime | None) -> list` — call `youtube_client.search_channel_videos()` with timestamp filter, return discovered videos
   - `is_new_video(video_id: str) -> bool` — check against `storage.has_transcript()` for idempotency
   - Structured JSON logging for discovery process
 
-- [ ] T013 [P] [US1] Implement state persistence helpers in `finfolio/storage.py`:
+- [x] T013 [P] [US1] Implement state persistence helpers in `finfolio/storage.py`:
   - Extend with `update_channel_last_fetch(channel_id: str, timestamp: datetime) -> None`
   - Extend with `get_channel_last_fetch(channel_id: str) -> datetime | None`
   - State file schema: `{"channels": {"channel_id": {"last_fetch": "ISO8601"}}}`
 
-- [ ] T014 [US1] Add `finfolio fetch` command to `finfolio/cli.py`:
+- [x] T014 [US1] Add `finfolio fetch` command to `finfolio/cli.py`:
   - Create Click command `@click.command('fetch')`
   - Initialize `YouTubeClient` (with service account credentials from config.load_credentials)
   - Initialize `ChannelMonitor`, storage helpers
@@ -132,12 +132,12 @@ docs/SERVICE_ACCOUNT_SETUP.md  # Service account setup guide
   - Release lock on completion
   - Exit codes: 0=success, 1=error, 2=locked
 
-- [ ] T015 [US1] Add service account credential validation to CLI:
+- [x] T015 [US1] Add service account credential validation to CLI:
   - Call `config.load_credentials()` at start of fetch command
   - Log error and exit(1) if `GOOGLE_APPLICATION_CREDENTIALS` env var is missing or credentials file is invalid
   - Validate that service account has YouTube Data API v3 enabled (via scope check if possible)
 
-- [ ] T016 [US1] Write integration test `tests/integration/test_channel_monitor.py`:
+- [x] T016 [US1] Write integration test `tests/integration/test_channel_monitor.py`:
   - Test: `finfolio fetch` with valid channels.yaml queries API for each channel
   - Test: Idempotency — running fetch twice doesn't discover same video twice
   - Test: Empty channel (no new videos) returns gracefully
@@ -156,14 +156,14 @@ docs/SERVICE_ACCOUNT_SETUP.md  # Service account setup guide
 
 ### Implementation for User Story 2
 
-- [ ] T017 [P] [US2] Implement `finfolio/transcript_fetcher.py` module with:
+- [x] T017 [P] [US2] Implement `finfolio/transcript_fetcher.py` module with:
   - `TranscriptFetcher` class with `__init__(youtube_client, storage)`
   - `fetch_and_save(video_id: str) -> bool` — call `youtube_client.fetch_captions()`, save via `storage.save_transcript()` using `.tmp` pattern, return True on success
   - `has_transcript(video_id: str) -> bool` — wrapper around `storage.has_transcript()` for idempotency
   - Handle missing captions gracefully: log "no transcript available" and return False
   - Structured JSON logging for each download attempt
 
-- [ ] T018 [US2] Implement timestamp formatting in `youtube_client.fetch_captions()`:
+- [x] T018 [US2] Implement timestamp formatting in `youtube_client.fetch_captions()`:
   - Call YouTube API v3 captions().list to get available captions
   - Call captions().download with tfmt='srt' to get SubRip format (includes timing)
   - Parse caption data: YouTube returns XML with `start` attribute (time in seconds)
@@ -173,7 +173,7 @@ docs/SERVICE_ACCOUNT_SETUP.md  # Service account setup guide
   - Example output: "00:15 Welcome to the video.\n00:30 Today we discuss...\n01:45 First point..."
   - Structured JSON logging showing transcript fetched with timestamp markers
 
-- [ ] T019 [US2] Extend `finfolio fetch` command to download transcripts:
+- [x] T019 [US2] Extend `finfolio fetch` command to download transcripts:
   - After `channel_monitor.check_channel()` discovers videos, initialize `TranscriptFetcher`
   - Save video metadata: call `storage.save_video_metadata()` before transcript download
   - For each discovered video:
@@ -184,12 +184,12 @@ docs/SERVICE_ACCOUNT_SETUP.md  # Service account setup guide
   - If video has no captions, log event with status: no_captions
   - Continue processing other videos if one fails
 
-- [ ] T020 [US2] Add cleanup of leftover `.tmp` files:
+- [x] T020 [US2] Add cleanup of leftover `.tmp` files:
   - At startup (in CLI command), scan `storage/transcripts/` for `*.tmp` files
   - Delete any `.tmp` files found
   - Log cleanup event as JSON
 
-- [ ] T021 [US2] Write integration test `tests/integration/test_transcript_fetcher.py`:
+- [x] T021 [US2] Write integration test `tests/integration/test_transcript_fetcher.py`:
   - Test: `finfolio fetch` downloads transcripts for new videos
   - Test: Idempotency — existing transcripts are skipped on second run
   - Test: Video without captions is logged as unavailable and fetch continues
@@ -210,24 +210,24 @@ docs/SERVICE_ACCOUNT_SETUP.md  # Service account setup guide
 
 ### Implementation for User Story 3
 
-- [ ] T022 [US3] Extend `YouTubeClient.get_quota_units_used()` to track:
+- [x] T022 [US3] Extend_units_used()` to track:
   - Units consumed per operation type (search, caption.list, caption.download)
   - Total units for the run
   - Store in instance variable (e.g., `self.quota_usage: dict`)
   - YouTube API returns quota units in response metadata for each call
 
-- [ ] T023 [US3] Extend `finfolio fetch` command to report quota:
+- [x] T023 [US3] Extend to report quota:
   - After processing all channels, log final quota report as JSON
   - Log event: fetch_complete, status: success, quota_units: total
   - Structured JSON logging with breakdown: `{"search": X, "caption.list": Y, "caption.download": Z, "total": N}`
 
-- [ ] T024 [US3] Add quota check before batch operations:
+- [x] T024 [US3] Add quota check before batch operations:
   - Before processing next channel/video, check remaining quota
   - Estimate quota needed: search ~100 units per channel, caption.list ~50 units per video, caption.download ~200 units per video
   - If insufficient quota for safe operation, log warning and stop (graceful backoff)
   - Exit(0) with warning, not error
 
-- [ ] T025 [US3] Write integration test `tests/integration/test_quota_logging.py`:
+- [x] T025 [US3] Write integration_logging.py`:
   - Test: `finfolio fetch` logs total quota units consumed per run
   - Test: Quota breakdown shows all operation types with correct units (search, caption.list, caption.download)
   - Test: Multiple runs sum correctly toward 10,000-unit daily ceiling
@@ -246,18 +246,18 @@ docs/SERVICE_ACCOUNT_SETUP.md  # Service account setup guide
 
 ### Implementation for User Story 4
 
-- [ ] T026 [US4] Create validation for `channels.yaml`:
+- [x] T026 [US4] Create validation for `channels.yaml`:
   - In `config.load_config()`, validate YAML syntax and required fields
   - Require fields: `channel_id`, `display_name`
   - Log clear error messages for malformed YAML (e.g., "Missing required field: channel_id in channel 2")
   - Continue on invalid channels but log warnings
 
-- [ ] T027 [US4] Add configuration validation to CLI:
+- [x] T027 [US4] Add configuration validation to CLI:
   - At startup, validate channels.yaml before any API calls
   - Log error and exit(1) if configuration is invalid
   - Log summary: "Loaded N channels: [display names]"
 
-- [ ] T028 [US4] Write unit test `tests/unit/test_config.py`:
+- [x] T028 [US4] Write unit test `tests/unit/test_config.py`:
   - Test: `load_config()` with valid channels.yaml returns list of dicts
   - Test: `load_config()` with missing channel_id logs error for that channel
   - Test: `load_config()` with malformed YAML raises error with clear message
@@ -275,7 +275,7 @@ docs/SERVICE_ACCOUNT_SETUP.md  # Service account setup guide
 
 ### Implementation for Service Account Setup
 
-- [ ] T029 Create service account setup guide at `docs/SERVICE_ACCOUNT_SETUP.md`:
+- [x] T029 Create service account setup guide at `docs/SERVICE_ACCOUNT_SETUP.md`:
   - Step-by-step instructions for:
     1. Creating a Google Cloud project
     2. Enabling YouTube Data API v3 for the project
@@ -287,7 +287,7 @@ docs/SERVICE_ACCOUNT_SETUP.md  # Service account setup guide
   - Production deployment instructions (GitHub Secrets, cloud platform env vars)
   - Troubleshooting section for common credential errors (403 Forbidden, 401 Unauthorized)
 
-- [ ] T030 Update `.env.example` template (if .env is used for other configs):
+- [x] T030 Update is used for other configs):
   - Add note: "For YouTube authentication, set GOOGLE_APPLICATION_CREDENTIALS env var directly (not via .env)"
   - Add example comment: `# GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json`
   - Document that service account key file should NOT be in version control
