@@ -8,8 +8,8 @@ class TestTranscriptFetcherIntegration:
 
     def test_fetch_and_save_with_real_storage(self, temp_storage_dir, mock_youtube_client):
         """Test transcript fetch with real storage backend."""
-        from finfolio.transcript_fetcher import TranscriptFetcher
         from finfolio import storage
+        from finfolio.transcript_fetcher import TranscriptFetcher
 
         mock_youtube_client.fetch_captions.return_value = "Test caption data"
         fetcher = TranscriptFetcher(mock_youtube_client, storage)
@@ -19,8 +19,8 @@ class TestTranscriptFetcherIntegration:
 
     def test_idempotency_skips_existing_transcripts(self, temp_storage_dir, mock_youtube_client):
         """Test idempotency: repeated fetch skips existing transcripts."""
-        from finfolio.transcript_fetcher import TranscriptFetcher
         from finfolio import storage
+        from finfolio.transcript_fetcher import TranscriptFetcher
 
         mock_youtube_client.fetch_captions.return_value = "Test caption"
         fetcher = TranscriptFetcher(mock_youtube_client, storage)

@@ -9,7 +9,6 @@ class TestChannelMonitorIntegration:
     def test_check_channel_with_real_storage(self, temp_storage_dir, mock_youtube_client):
         """Test channel monitor with real storage backend."""
         from finfolio.channel_monitor import ChannelMonitor
-        from finfolio import storage
 
         monitor = ChannelMonitor(mock_youtube_client)
         videos = monitor.check_channel("UCtest", "Test Channel")
@@ -18,8 +17,8 @@ class TestChannelMonitorIntegration:
 
     def test_idempotency_skips_existing_videos(self, temp_storage_dir, mock_youtube_client):
         """Test repeated monitoring skips already-fetched videos."""
-        from finfolio.channel_monitor import ChannelMonitor
         from finfolio import storage
+        from finfolio.channel_monitor import ChannelMonitor
 
         monitor = ChannelMonitor(mock_youtube_client)
         videos = monitor.check_channel("UCtest", "Test Channel")

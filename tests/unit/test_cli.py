@@ -4,7 +4,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from finfolio import cli, storage
 from finfolio.cli import main
 
 

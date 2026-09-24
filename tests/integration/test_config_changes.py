@@ -12,7 +12,6 @@ class TestConfigChanges:
 
         # Load initial config
         channels = load_config(temp_config_file)
-        initial_count = len(channels)
 
         # Verify config loaded
         assert isinstance(channels, list)
