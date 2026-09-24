@@ -185,6 +185,32 @@ channels.yaml          # Configuration file (root)
 
 ---
 
+## Phase 4.1: Video Metadata Storage (Enhancement)
+
+**Goal**: Store video metadata (title, URL, date) in state file for easy reference and linking back to YouTube
+
+**Independent Test**: Run `finfolio fetch`, verify state file contains video metadata with YouTube URLs; operator can copy URL to watch video
+
+### Implementation for Video Metadata
+
+- [x] T020a [US2] Extend `finfolio/storage.py` with metadata functions:
+  - `save_video_metadata(video_id: str, title: str, channel_id: str, published_at: str) -> None`
+    - Append to state file under `videos` key: `{"video_id": {..., "title": "...", "channel_id": "...", "published_at": "...", "url": "https://youtube.com/watch?v=..."}}`
+    - Atomic write via temp file pattern (FR-020)
+    - Structured JSON logging with video_id and title
+  - `get_video_metadata(video_id: str) -> dict | None`
+    - Retrieve stored metadata for a video (future lookups, dashboards)
+
+- [x] T020b [US2] Integrate metadata saving into CLI:
+  - In `finfolio/cli.py` fetch command, after identifying new videos:
+    - For each new video, call `storage.save_video_metadata()` before transcript download (FR-020)
+    - Ensures all fetched videos are documented with full metadata
+  - Log event includes title and URL for operator reference
+
+**Checkpoint**: Video metadata stored and accessible. Operator can easily find and watch source videos from state file.
+
+---
+
 ## Phase 5: User Story 3 - Log API Quota Usage (Priority: P2)
 
 **Goal**: System tracks and logs YouTube API quota consumption per run
