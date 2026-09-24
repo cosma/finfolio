@@ -1,6 +1,5 @@
 """YouTube Data API v3 wrapper for video discovery and caption fetching."""
 import json
-import re
 from datetime import UTC, datetime
 from typing import Any
 

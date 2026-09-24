@@ -7,7 +7,7 @@ import click
 
 from finfolio import storage
 from finfolio.channel_monitor import ChannelMonitor
-from finfolio.config import load_credentials, load_config
+from finfolio.config import load_config, load_credentials
 from finfolio.transcript_fetcher import TranscriptFetcher
 from finfolio.youtube_client import YouTubeClient
 
