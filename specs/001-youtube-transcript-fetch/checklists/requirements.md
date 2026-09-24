@@ -39,6 +39,8 @@
 - State persistence: Last-fetch timestamp stored in `storage/.finfolio-state.json` + file existence double-check
 - Logging format: Structured JSON to stdout (one object per line)
 - Partial file handling: Download using `.tmp` extension, rename on success, cleanup on startup
+- API credential security: Support both `YOUTUBE_API_KEY` environment variable and `.env` config file; `.env` must be in `.gitignore` and never committed
+- Concurrent execution safety: Use lock file (`storage/.finfolio.lock`) to prevent concurrent runs; exit with error if another process is running
 
 **Key Alignments with Constitution**:
 - Principle VI (Reliability Over Cleverness): Spec mandates YouTube Data API v3 only, no HTML scraping

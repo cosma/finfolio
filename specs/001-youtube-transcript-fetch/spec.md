@@ -15,6 +15,8 @@
 - Q: How should the system track "new videos since last run"? → A: Store state file (`storage/.finfolio-state.json`) with last-fetch timestamp per channel + always check file existence before download (hybrid approach for both efficiency and safety)
 - Q: What format and destination should logs use? → A: Structured JSON logs to stdout with optional file rotation
 - Q: How should the system detect and handle partially-written transcript files? → A: Use `.tmp` extension during download; rename to final name only on successful completion; clean up any `.tmp` files on startup
+- Q: How should the system handle YouTube API credentials securely? → A: Support both environment variable (`YOUTUBE_API_KEY`) and `.env` config file; document that `.env` must be in `.gitignore` and never committed to version control
+- Q: How should the system handle concurrent execution (manual + scheduled runs)? → A: Use lock file (`storage/.finfolio.lock`) to prevent concurrent execution; exit with error if another fetch is running
 
 ## User Scenarios & Testing
 
@@ -96,22 +98,25 @@ An operator maintains a channels.yaml file listing ~10 YouTube financial/investm
 
 ### Functional Requirements
 
-- **FR-001**: System MUST read channel configuration from channels.yaml on startup (channel ID, display name)
-- **FR-002**: System MUST maintain a state file (`storage/.finfolio-state.json`) tracking the last-fetch timestamp for each channel
-- **FR-003**: System MUST query the YouTube Data API v3 search endpoint for each configured channel, filtering for videos published since that channel's last-fetch timestamp
-- **FR-004**: System MUST track which video transcripts have already been fetched by checking storage/transcripts/{video_id}.txt file existence
-- **FR-005**: System MUST skip videos whose transcript file already exists (idempotent behavior)
-- **FR-006**: System MUST download transcripts using temporary `.tmp` files and rename to final name only after successful completion
-- **FR-007**: System MUST clean up any leftover `.tmp` files on startup (from interrupted previous runs)
-- **FR-008**: System MUST fetch captions using YouTube Data API v3 captions().list and captions().download endpoints for new videos
-- **FR-009**: System MUST write raw transcript to storage/transcripts/{video_id}.txt with UTF-8 encoding
-- **FR-010**: System MUST log all operations as structured JSON to stdout (one object per line) including: timestamp, operation type, status, video/channel IDs, and quota units consumed
-- **FR-011**: System MUST log YouTube Data API quota usage per run (total units consumed and breakdown by operation type: search, caption.list, caption.download)
-- **FR-012**: System MUST expose a CLI command `finfolio fetch` that can be invoked manually or scheduled
-- **FR-013**: System MUST continue processing other channels if one channel's API call fails
-- **FR-014**: System MUST handle videos with no available captions gracefully (log as unavailable, skip)
-- **FR-015**: System MUST create the storage/transcripts/ directory if it does not exist
-- **FR-016**: System MUST validate channels.yaml syntax on load and report configuration errors clearly
+- **FR-001**: System MUST read YouTube Data API key from either the `YOUTUBE_API_KEY` environment variable or a `.env` file on startup; if missing from both sources, log a warning and exit with error code
+- **FR-002**: System MUST establish an exclusive lock (`storage/.finfolio.lock`) at startup; if another fetch process holds the lock, exit with error "Another fetch is running, please try again later"
+- **FR-003**: System MUST release the lock file when the fetch completes (success or failure) to allow subsequent runs
+- **FR-004**: System MUST read channel configuration from channels.yaml on startup (channel ID, display name)
+- **FR-005**: System MUST maintain a state file (`storage/.finfolio-state.json`) tracking the last-fetch timestamp for each channel
+- **FR-006**: System MUST query the YouTube Data API v3 search endpoint for each configured channel, filtering for videos published since that channel's last-fetch timestamp
+- **FR-007**: System MUST track which video transcripts have already been fetched by checking storage/transcripts/{video_id}.txt file existence
+- **FR-008**: System MUST skip videos whose transcript file already exists (idempotent behavior)
+- **FR-009**: System MUST download transcripts using temporary `.tmp` files and rename to final name only after successful completion
+- **FR-010**: System MUST clean up any leftover `.tmp` files on startup (from interrupted previous runs)
+- **FR-011**: System MUST fetch captions using YouTube Data API v3 captions().list and captions().download endpoints for new videos
+- **FR-012**: System MUST write raw transcript to storage/transcripts/{video_id}.txt with UTF-8 encoding
+- **FR-013**: System MUST log all operations as structured JSON to stdout (one object per line) including: timestamp, operation type, status, video/channel IDs, and quota units consumed
+- **FR-014**: System MUST log YouTube Data API quota usage per run (total units consumed and breakdown by operation type: search, caption.list, caption.download)
+- **FR-015**: System MUST expose a CLI command `finfolio fetch` that can be invoked manually or scheduled
+- **FR-016**: System MUST continue processing other channels if one channel's API call fails
+- **FR-017**: System MUST handle videos with no available captions gracefully (log as unavailable, skip)
+- **FR-018**: System MUST create the storage/transcripts/ directory if it does not exist
+- **FR-019**: System MUST validate channels.yaml syntax on load and report configuration errors clearly
 
 ### Key Entities
 
@@ -140,7 +145,8 @@ An operator maintains a channels.yaml file listing ~10 YouTube financial/investm
 - **Transcript Format**: Raw captions from YouTube are stored as-is; no cleaning, normalization, or deduplication of overlapping captions is performed in this module
 - **Error Recovery**: Failed API calls (e.g., rate limits, network errors) are logged but do not trigger retries within the same run; a future scheduled run will retry automatically
 - **Configuration Format**: channels.yaml is a simple YAML file with channel entries; no environment-specific overrides or profile selection are needed
-- **Dependencies**: YouTube Data API v3 credentials (API key or OAuth2 service account) are provided via environment variable or config file; the module assumes credentials are valid and have sufficient quota
+- **API Credentials**: YouTube Data API key is read from either the `YOUTUBE_API_KEY` environment variable or a `.env` file; the module assumes credentials are valid and have sufficient quota; `.env` must be in `.gitignore` and never committed to version control; operators may use environment variables for production (e.g., GitHub Secrets) and `.env` for local development
+- **Concurrent Execution Safety**: Only one `finfolio fetch` process can run at a time; exclusivity is enforced via a lock file (`storage/.finfolio.lock`); if a process is already running, new invocations exit immediately with an error message
 - **Constitution Compliance**: All API calls use official YouTube Data API v3 (Principle VI: Reliability Over Cleverness); no HTML scraping or unofficial endpoints are used
 - **State Persistence**: Last-fetch timestamp per channel is stored in `storage/.finfolio-state.json` to enable efficient delta queries (only fetching videos published since the last run). This state file is created automatically on first run
 - **Idempotency Strategy**: Idempotency is enforced by a two-layer check: (1) state file tracks last fetch time per channel to avoid re-querying, and (2) file existence check before download ensures transcripts are never re-downloaded even if state is lost
