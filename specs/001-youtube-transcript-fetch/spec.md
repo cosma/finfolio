@@ -1,0 +1,148 @@
+# Feature Specification: YouTube Channel Monitoring and Transcript Ingestion
+
+**Feature Branch**: `001-youtube-transcript-fetch`
+
+**Created**: 2026-09-24
+
+**Status**: Draft
+
+**Input**: Build the channel monitoring and transcript ingestion module for FinFolio. Maintain a channels.yaml config file listing about 10 YouTube financial/investment advisor channels (channel ID and display name), editable without touching code. Check each configured channel daily for new videos, using the YouTube Data API v3 search endpoint (roughly 2-3 new videos per channel per week expected). For each new video not already present in storage/transcripts/, fetch its caption track via the YouTube Data API v3 captions().list and captions().download endpoints and write the raw transcript to storage/transcripts/{video_id}.txt. Skip videos whose transcript file already exists, so runs are idempotent and safe to repeat daily. Log YouTube API quota usage per run. Expose this as a CLI command, e.g. finfolio fetch, that can be triggered manually or on a schedule. Out of scope for this module: summarization, fact-checking, and anything downstream of raw transcript storage.
+
+## Clarifications
+
+### Session 2026-09-24
+
+- Q: How should the system track "new videos since last run"? → A: Store state file (`storage/.finfolio-state.json`) with last-fetch timestamp per channel + always check file existence before download (hybrid approach for both efficiency and safety)
+- Q: What format and destination should logs use? → A: Structured JSON logs to stdout with optional file rotation
+- Q: How should the system detect and handle partially-written transcript files? → A: Use `.tmp` extension during download; rename to final name only on successful completion; clean up any `.tmp` files on startup
+
+## User Scenarios & Testing
+
+### User Story 1 - Monitor channels for new videos (Priority: P1)
+
+A FinFolio operator configures a set of YouTube financial channels in channels.yaml and runs `finfolio fetch` to discover new videos published since the last run. The system queries each channel using YouTube Data API v3 search endpoint, identifies videos not yet in the transcript storage, and prepares them for transcript fetching.
+
+**Why this priority**: This is the core capability that enables the entire system. Without detecting new videos, there's nothing to transcribe or fact-check. This is the foundational workflow that must work reliably before any downstream features can operate.
+
+**Independent Test**: Can be fully tested by configuring a test channel, running the fetch command, and verifying that new video metadata (IDs, titles, published dates) is correctly identified and stored. Delivers the ability to track new content.
+
+**Acceptance Scenarios**:
+
+1. **Given** channels.yaml with a configured YouTube channel, **When** `finfolio fetch` is executed, **Then** the system queries the YouTube Data API v3 search endpoint for the channel and returns a list of videos matching the search criteria (title, publication date)
+2. **Given** a previously fetched video ID, **When** `finfolio fetch` is executed again, **Then** the system does not duplicate the video in its internal tracking (idempotent)
+3. **Given** a channel with no new videos since the last run, **When** `finfolio fetch` is executed, **Then** the system returns an empty list for that channel without error
+4. **Given** invalid channel configuration (malformed ID), **When** `finfolio fetch` is executed, **Then** the system logs the error for that channel and continues processing other channels
+
+---
+
+### User Story 2 - Fetch and store transcripts (Priority: P1)
+
+For each new video identified, the system automatically fetches its captions using YouTube Data API v3 captions endpoints and writes the raw transcript to storage. Transcripts persist on disk in a predictable location for downstream processing (summarization, fact-checking, indexing).
+
+**Why this priority**: Transcript retrieval is the core data collection mechanism. Without reliable transcript storage, the fact-checking pipeline has no input. This must work before any analysis features can be built.
+
+**Independent Test**: Can be fully tested by providing a known video ID, running fetch, and verifying that the transcript file exists at the expected path with correct content. Delivers persistent transcript storage.
+
+**Acceptance Scenarios**:
+
+1. **Given** a new video ID identified by the monitor, **When** `finfolio fetch` is executed, **Then** the system fetches captions from YouTube Data API v3 and writes the raw transcript to storage/transcripts/{video_id}.txt
+2. **Given** a video that already has a transcript file, **When** `finfolio fetch` is executed again, **Then** the system skips that video (idempotent, no re-download)
+3. **Given** a video without available captions on YouTube, **When** `finfolio fetch` is executed, **Then** the system logs this as "no transcript available" and skips to the next video without crashing
+4. **Given** the transcript file for a video, **When** the file is read, **Then** it contains the raw caption text in chronological order
+
+---
+
+### User Story 3 - Log API quota usage (Priority: P2)
+
+After each run of `finfolio fetch`, the system logs how many YouTube Data API quota units were consumed during that run. This enables tracking of API cost against the 10,000-unit daily budget and helps detect anomalies (e.g., quota-exhausting bugs).
+
+**Why this priority**: Quota monitoring is essential for staying within YouTube API limits and avoiding unexpected service interruptions. It's not part of the core video/transcript flow but is critical for operational reliability and cost management (per FinFolio Constitution Principle VII).
+
+**Independent Test**: Can be fully tested by running fetch on a known set of channels and verifying that a quota usage report is logged showing units consumed for search operations and caption downloads. Delivers visibility into API cost.
+
+**Acceptance Scenarios**:
+
+1. **Given** a completed run of `finfolio fetch`, **When** the run finishes, **Then** the system logs total quota units consumed (broken down by operation type: search, caption.list, caption.download)
+2. **Given** accumulated quota usage over multiple runs, **When** quota is logged each run, **Then** the operator can sum daily usage to stay under the 10,000-unit ceiling
+3. **Given** a run that exhausts remaining daily quota, **When** the system detects quota exhaustion, **Then** it logs a warning and gracefully stops further API calls
+
+---
+
+### User Story 4 - Configure channels without code changes (Priority: P2)
+
+An operator maintains a channels.yaml file listing ~10 YouTube financial/investment channels (channel ID and display name). Adding, removing, or updating channels requires only editing this YAML file; no code deployment is needed.
+
+**Why this priority**: Configuration-driven design keeps the system flexible and allows non-technical operators to manage the channel list. This reduces friction for onboarding new channels and removes the need to re-deploy code for operational changes.
+
+**Independent Test**: Can be fully tested by editing channels.yaml, rerunning fetch, and verifying that the new configuration is applied correctly (new channels are queried, removed channels are skipped). Delivers operational agility.
+
+**Acceptance Scenarios**:
+
+1. **Given** an empty or outdated channels.yaml, **When** the file is updated with new channel IDs and display names, **Then** `finfolio fetch` uses the new configuration on the next run without code changes
+2. **Given** channels.yaml with malformed YAML syntax, **When** `finfolio fetch` is executed, **Then** the system reports a clear error message indicating the configuration issue and exits gracefully
+3. **Given** a channels.yaml with a channel ID that is no longer valid on YouTube, **When** `finfolio fetch` is executed, **Then** the system logs an error for that channel but continues processing other channels
+
+---
+
+### Edge Cases
+
+- What happens if YouTube API rate limits are hit mid-run? (System should gracefully stop, log remaining quota, and inform operator)
+- How does the system handle videos with no captions available? (Log as "no transcript available" and skip)
+- What if the storage/transcripts/ directory doesn't exist? (System should create it automatically)
+- How does the system behave if a transcript file is partially written (interrupted write)? (Skip the incomplete file on next run and re-download)
+- What if the channels.yaml file is deleted or unreadable? (System reports error and halts)
+
+## Requirements
+
+### Functional Requirements
+
+- **FR-001**: System MUST read channel configuration from channels.yaml on startup (channel ID, display name)
+- **FR-002**: System MUST maintain a state file (`storage/.finfolio-state.json`) tracking the last-fetch timestamp for each channel
+- **FR-003**: System MUST query the YouTube Data API v3 search endpoint for each configured channel, filtering for videos published since that channel's last-fetch timestamp
+- **FR-004**: System MUST track which video transcripts have already been fetched by checking storage/transcripts/{video_id}.txt file existence
+- **FR-005**: System MUST skip videos whose transcript file already exists (idempotent behavior)
+- **FR-006**: System MUST download transcripts using temporary `.tmp` files and rename to final name only after successful completion
+- **FR-007**: System MUST clean up any leftover `.tmp` files on startup (from interrupted previous runs)
+- **FR-008**: System MUST fetch captions using YouTube Data API v3 captions().list and captions().download endpoints for new videos
+- **FR-009**: System MUST write raw transcript to storage/transcripts/{video_id}.txt with UTF-8 encoding
+- **FR-010**: System MUST log all operations as structured JSON to stdout (one object per line) including: timestamp, operation type, status, video/channel IDs, and quota units consumed
+- **FR-011**: System MUST log YouTube Data API quota usage per run (total units consumed and breakdown by operation type: search, caption.list, caption.download)
+- **FR-012**: System MUST expose a CLI command `finfolio fetch` that can be invoked manually or scheduled
+- **FR-013**: System MUST continue processing other channels if one channel's API call fails
+- **FR-014**: System MUST handle videos with no available captions gracefully (log as unavailable, skip)
+- **FR-015**: System MUST create the storage/transcripts/ directory if it does not exist
+- **FR-016**: System MUST validate channels.yaml syntax on load and report configuration errors clearly
+
+### Key Entities
+
+- **Channel**: Represents a YouTube channel with channel ID, display name, and last-fetch timestamp (metadata only, not stored persistently in this module)
+- **Video**: Represents a YouTube video with video ID, title, channel ID, publish date, and caption availability status
+- **Transcript**: A raw caption text file stored at storage/transcripts/{video_id}.txt, containing chronologically ordered captions from YouTube
+
+## Success Criteria
+
+### Measurable Outcomes
+
+- **SC-001**: System fetches new transcripts for all configured channels (expect 2-3 new videos per channel per week) without manual intervention
+- **SC-002**: System completes a full fetch run on 10 channels in under 5 minutes (includes API calls and transcript storage, assuming no rate limiting)
+- **SC-003**: System runs are fully idempotent: repeating `finfolio fetch` twice in succession fetches zero transcripts the second time (all new videos from first run are already stored)
+- **SC-004**: YouTube Data API quota usage is logged and stays well under the 10,000-unit daily ceiling (target: 50-100 units per run on 10 channels)
+- **SC-005**: Non-critical failures (missing captions for one video, one channel unreachable) do not block processing of other channels; full run completes with logged warnings
+- **SC-006**: Operator can add/remove channels by editing channels.yaml only; no code recompilation or deployment needed
+- **SC-007**: All transcript files are readable as plain text UTF-8 and contain complete captions in chronological order
+
+## Assumptions
+
+- **Target User**: A FinFolio operator (could be automated scheduler or manual trigger by team member) with access to a machine where FinFolio CLI can run, with network access to YouTube API
+- **Scope**: This module covers monitoring + transcript ingestion only. Summarization, fact-checking, report generation, and any downstream processing are explicitly out of scope
+- **Trigger Mechanism**: `finfolio fetch` is triggered manually via CLI or via an external scheduler (cron, GitHub Actions, etc.). This module does not implement scheduling itself
+- **Channel List**: Starting with ~10 channels; the system should handle up to 50+ channels without significant performance degradation
+- **Transcript Format**: Raw captions from YouTube are stored as-is; no cleaning, normalization, or deduplication of overlapping captions is performed in this module
+- **Error Recovery**: Failed API calls (e.g., rate limits, network errors) are logged but do not trigger retries within the same run; a future scheduled run will retry automatically
+- **Configuration Format**: channels.yaml is a simple YAML file with channel entries; no environment-specific overrides or profile selection are needed
+- **Dependencies**: YouTube Data API v3 credentials (API key or OAuth2 service account) are provided via environment variable or config file; the module assumes credentials are valid and have sufficient quota
+- **Constitution Compliance**: All API calls use official YouTube Data API v3 (Principle VI: Reliability Over Cleverness); no HTML scraping or unofficial endpoints are used
+- **State Persistence**: Last-fetch timestamp per channel is stored in `storage/.finfolio-state.json` to enable efficient delta queries (only fetching videos published since the last run). This state file is created automatically on first run
+- **Idempotency Strategy**: Idempotency is enforced by a two-layer check: (1) state file tracks last fetch time per channel to avoid re-querying, and (2) file existence check before download ensures transcripts are never re-downloaded even if state is lost
+- **Logging Format**: All logs are output as structured JSON (one object per line) to stdout, enabling machine-readable parsing by monitoring tools and log aggregators. Optional file rotation can be configured by redirecting stdout
+- **Partial File Handling**: Downloads use a temporary `.tmp` extension; the file is renamed to its final name only after successful completion. On startup, any leftover `.tmp` files are deleted to clean up incomplete downloads from interrupted runs
