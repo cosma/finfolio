@@ -4,7 +4,7 @@ import sys
 from datetime import datetime
 from typing import Any, Optional
 
-from finfolio.storage import get_channel_last_fetch, has_transcript
+from finfolio.storage import has_transcript
 from finfolio.youtube_client import YouTubeClient
 
 
