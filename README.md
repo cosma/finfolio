@@ -91,11 +91,11 @@ The `finfolio fetch` command automatically discovers new videos from configured 
 ### Installation
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
+# Install dependencies with uv
+uv sync
 
 # Or install in editable mode with dev dependencies
-pip install -e ".[dev]"
+uv pip install -e ".[dev]"
 ```
 
 ### Configuration
@@ -188,16 +188,16 @@ channels.yaml                # Channel configuration (editable)
 
 ```bash
 # Run all tests
-pytest tests/ -v
+uv run pytest tests/ -v
 
 # Run only unit tests
-pytest tests/unit/ -v
+uv run pytest tests/unit/ -v
 
 # Run with coverage
-pytest tests/ --cov=finfolio --cov-report=html
+uv run pytest tests/ --cov=finfolio --cov-report=html
 
 # Run specific test
-pytest tests/unit/test_storage.py::TestStorage::test_save_transcript_writes_file -v
+uv run pytest tests/unit/test_storage.py::TestStorage::test_save_transcript_writes_file -v
 ```
 
 ### Example Workflow
@@ -263,11 +263,11 @@ $ finfolio fetch
 
 ```bash
 # Linting
-ruff check finfolio/ tests/
+uv run ruff check finfolio/ tests/
 
 # Type checking
-mypy finfolio/
+uv run mypy finfolio/
 
 # Format code
-ruff format finfolio/ tests/
+uv run ruff format finfolio/ tests/
 ```
