@@ -223,6 +223,7 @@ storage/
 .finfolio-state.json
 *.tmp
 channels.yaml
+graphify-out/
 
 # Service account credentials (NEVER commit)
 *-key.json
