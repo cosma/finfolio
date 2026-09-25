@@ -28,8 +28,8 @@ class Claim(BaseModel):
     )
     source_timestamp: str | None = Field(
         None,
-        pattern=r"^\d{1,2}:\d{2}:\d{2}$",
-        description="Video timestamp HH:MM:SS where claim was spoken",
+        pattern=r"^\d{1,2}:\d{2}(?::\d{2})?$",
+        description="Video timestamp MM:SS or HH:MM:SS where claim was spoken",
     )
     confidence_score: float | None = Field(
         None, ge=0.0, le=1.0, description="LLM confidence that this is factual (0.0-1.0)"

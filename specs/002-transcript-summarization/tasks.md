@@ -627,3 +627,16 @@ After each phase, verify:
 
 **Completion Status**: 11 tasks to resolve critical blockers (T087), verify spec compliance (T088-T094), and validate implementation (T095-T097)
 
+
+---
+
+## Phase 11: Convergence (Bug Fix - Real-World Validation)
+
+**Purpose**: Fix issue discovered during real-world test execution
+
+**Status**: Bug found in production test run (make summary)
+
+- [x] T098 Fix source_timestamp validation schema per runtime discovery (HIGH) — LLM returns MM:SS format (e.g., "01:07") but Claim.source_timestamp regex expects HH:MM:SS (e.g., "01:07:30"); either (a) update regex to accept optional hours: `^\d{1,2}:\d{2}(?::\d{2})?$` or (b) make field optional per data-model.md spec; currently blocks all LLM output validation with PatternMismatchError
+
+**Completion Status**: 1 task to fix schema validation bug discovered during real execution
+
