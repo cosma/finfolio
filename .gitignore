@@ -228,3 +228,5 @@ channels.yaml
 *-key.json
 *service-account*.json
 google-credentials.json
+
+.DS_Store
