@@ -1,13 +1,15 @@
 """CLI entry point for finfolio fetch command."""
 import json
+import random
 import sys
+import time
 from datetime import UTC, datetime
 
 import click
 
 from finfolio import storage
 from finfolio.channel_monitor import ChannelMonitor
-from finfolio.config import load_config, load_credentials
+from finfolio.config import load_api_key, load_config
 from finfolio.transcript_fetcher import TranscriptFetcher
 from finfolio.youtube_client import YouTubeClient
 
@@ -34,17 +36,19 @@ def main(ctx: click.Context, config: str) -> None:
 
 
 @main.command()
+@click.option("--min-delay", default=10, type=float, help="Minimum delay in seconds between transcript fetches (default: 10)")
+@click.option("--max-delay", default=20, type=float, help="Maximum delay in seconds between transcript fetches (default: 20)")
 @click.pass_context
-def fetch(ctx: click.Context) -> None:
+def fetch(ctx: click.Context, min_delay: float, max_delay: float) -> None:
     """Check configured channels for new videos and fetch transcripts."""
     config_path = ctx.obj["config_path"]
 
     try:
         _log_event("fetch_start", "success")
 
-        # Load service account credentials
+        # Load API key
         try:
-            credentials = load_credentials()
+            api_key = load_api_key()
         except ValueError as e:
             _log_event("fetch_failed", "failed", error=str(e))
             sys.exit(1)
@@ -65,8 +69,8 @@ def fetch(ctx: click.Context) -> None:
             sys.exit(2)
 
         try:
-            # Initialize clients with service account credentials
-            youtube_client = YouTubeClient(credentials)
+            # Initialize clients with API key
+            youtube_client = YouTubeClient(api_key)
             channel_monitor = ChannelMonitor(youtube_client)
             transcript_fetcher = TranscriptFetcher(youtube_client, storage)
 
@@ -100,7 +104,7 @@ def fetch(ctx: click.Context) -> None:
                               display_name=display_name, new_videos=len(new_videos))
 
                     # Fetch transcripts for new videos
-                    for video in new_videos:
+                    for i, video in enumerate(new_videos):
                         video_id = video.get("video_id")
                         if not video_id:
                             continue
@@ -125,8 +129,23 @@ def fetch(ctx: click.Context) -> None:
                                     _log_event("download_transcript", "failed", video_id=video_id,
                                               reason="no_captions")
                             except Exception as e:
+                                error_str = str(e)
                                 _log_event("download_transcript", "failed", video_id=video_id,
-                                          error=str(e))
+                                          error=error_str)
+
+                                # Check if YouTube has blocked our IP (various error messages)
+                                if "too many requests" in error_str.lower() or "blocked" in error_str.lower():
+                                    _log_event("fetch_failed", "failed",
+                                              error="IP_BLOCKED_BY_YOUTUBE",
+                                              message="YouTube blocked your IP. Please wait and try again later.")
+                                    storage.release_lock()
+                                    sys.exit(1)
+
+                        # Add random delay between requests to avoid IP blocking
+                        # Random delays mimic human behavior and prevent IP blocks
+                        if i < len(new_videos) - 1:
+                            random_delay = random.uniform(min_delay, max_delay)
+                            time.sleep(random_delay)
 
                     # Update last fetch timestamp
                     storage.update_channel_last_fetch(channel_id, datetime.now(UTC))

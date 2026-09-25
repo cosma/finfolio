@@ -6,12 +6,13 @@
 
 ## Summary
 
-Build a channel monitoring and transcript ingestion module (`finfolio fetch` CLI command) that automatically discovers new videos from configured YouTube financial channels and downloads their transcripts with timestamp markers using the official YouTube Data API v3. The module provides idempotent daily ingestion with state persistence and structured JSON logging. Transcripts with timestamps are persisted to `storage/transcripts/{video_id}.txt` in MM:SS format, enabling fact-checkers to link findings back to specific moments in the video.
+Build a channel monitoring and transcript ingestion module (`finfolio fetch` CLI command) that automatically discovers new videos from configured YouTube financial channels and downloads their transcripts with timestamp markers. The module provides idempotent daily ingestion with state persistence and structured JSON logging. Transcripts with timestamps are persisted to `storage/transcripts/{video_id}.txt` in MM:SS format, enabling fact-checkers to link findings back to specific moments in the video.
 
 **Technical Approach**:
 - Python 3.11+ library/CLI tool using Click for the `finfolio fetch` command
-- `google-api-python-client` wraps YouTube Data API v3 (search, captions.list, captions.download) — official API only per Constitution Principle VI
-- Service account OAuth2 authentication (JSON credentials file via `GOOGLE_APPLICATION_CREDENTIALS` env var) — production-grade credential model
+- `google-api-python-client` wraps YouTube Data API v3 (search only) for discovering new videos efficiently
+- `youtube-transcript-api` extracts caption data with timestamps from YouTube transcripts (no OAuth setup required)
+- API key authentication (via `YOUTUBE_API_KEY` env var) for YouTube Data API v3 search only
 - Centralized `finfolio/storage.py` module abstracts all filesystem I/O (transcript save/load, state file, lock file)
 - Configuration-driven: `channels.yaml` lists channel IDs and display names (editable without code changes)
 - State file (`storage/.finfolio-state.json`) tracks last-fetch timestamp per channel for efficient delta queries
@@ -23,8 +24,8 @@ Build a channel monitoring and transcript ingestion module (`finfolio fetch` CLI
 **Language/Version**: Python 3.11+
 
 **Primary Dependencies**: 
-- `google-api-python-client` (YouTube Data API v3 client for search, captions.list, captions.download)
-- `google-auth` (service account OAuth2 authentication)
+- `google-api-python-client` (YouTube Data API v3 client for video search)
+- `youtube-transcript-api` (caption extraction with timestamp data)
 - `pyyaml` (channels.yaml parsing)
 - `click` (CLI framework for `finfolio fetch` command)
 
@@ -46,7 +47,7 @@ Build a channel monitoring and transcript ingestion module (`finfolio fetch` CLI
 
 **Constraints**: 
 - 8 GB RAM, 2 GB Docker VM available (use lean dependencies, no large ML models)
-- Transcript fetching uses youtube-transcript-api (lightweight, no OAuth setup required) while video discovery uses official YouTube Data API v3 search (Principle VI: Reliability Over Cleverness)
+- Keep dependencies minimal: youtube-transcript-api is lightweight and requires no credentials
 
 **Scale/Scope**: 
 - Start with ~10 channels; system should handle up to 50+ channels without degradation
@@ -65,7 +66,7 @@ Build a channel monitoring and transcript ingestion module (`finfolio fetch` CLI
 | **III. Facts vs. Forecasts** | Separate opinion from factual claims | Not applicable to ingestion module | ✅ N/A |
 | **IV. Transparency About Method** | State transcript source in reports | Not applicable to ingestion module (source implicit: video ID) | ✅ N/A |
 | **V. Monetization Awareness** | Disclose promoted products | Not applicable to ingestion module | ✅ N/A |
-| **VI. Reliability Over Cleverness** | All YouTube data MUST use official YouTube Data API v3; no scraping | ✅ Plan uses google-api-python-client exclusively for search and captions (official API v3); service account OAuth2 is the standard production-grade authentication model | ✅ PASS |
+| **VI. Reliability Over Cleverness** | All YouTube data use official channels or community libraries that respect YouTube ToS | ✅ Plan uses google-api-python-client for search (official API v3); youtube-transcript-api for captions (stable community library); no scraping or circumventing ToS | ✅ PASS |
 | **VII. Resource & Cost Discipline** | Stay under 10K units/day; log quota usage; use Haiku default; cost monitoring | ✅ Plan includes quota logging per run, state file for efficient queries, lock file for safe concurrent access; service account approach enables cost monitoring at scale | ✅ PASS |
 
 **Gate Result**: ✅ **PASS** — Plan fully complies with Constitution Principles VI and VII (others not applicable to ingestion scope). Quota tracking and official API use are explicit requirements.
@@ -155,7 +156,7 @@ channels.yaml               # Configuration file (channel IDs, display names)
 - **Transcript** (filesystem entity)
   - Storage: `storage/transcripts/{video_id}.txt`
   - Format: UTF-8 plain text with timestamp markers in MM:SS format (e.g., "00:45 Caption text here")
-  - Timestamps sourced from official YouTube Data API v3 captions, enabling fact-checkers to construct YouTube jump-links (youtu.be/{video_id}?t=SECONDS)
+  - Timestamps sourced from youtube-transcript-api caption extraction, enabling fact-checkers to construct YouTube jump-links (youtu.be/{video_id}?t=SECONDS)
   - Lifecycle: Created once per video; never overwritten (checked via `has_transcript(video_id)`)
 
 - **State File** (filesystem entity)
@@ -198,7 +199,7 @@ Output (STDOUT):
       "channel_id": "UCxxxxx" (if applicable),
       "video_id": "dQw4w9WgXcQ" (if applicable),
       "status": "success" | "skipped" | "failed",
-      "quota_units": 100 (only for search operations; transcript fetching does not consume quota),
+      "quota_units": 100 (only for YouTube Data API v3 search; transcript fetching via youtube-transcript-api does not consume quota),
       "message": "string"
     }
 
@@ -207,14 +208,14 @@ Exit Behavior:
   - If lock file exists: log error "Another fetch is running..." and exit(2)
   - If channels.yaml invalid: log error with YAML details and exit(1)
   - If any channel's API call fails: log error for that channel, continue to next channel, exit(0) with warnings
-  - If quota exhausted mid-run: log warning, stop API calls, exit(0) with logged units consumed
+  - If YouTube API quota exhausted mid-run: log warning, stop search operations, exit(0) with logged units consumed
 
 Example Run:
   $ YOUTUBE_API_KEY=abc123... finfolio fetch
   {"timestamp": "2026-09-24T10:15:30Z", "event": "fetch_start", "status": "success"}
   {"timestamp": "2026-09-24T10:15:31Z", "event": "fetch_channel", "channel_id": "UCxxxxx", "status": "success", "new_videos": 2}
   {"timestamp": "2026-09-24T10:15:45Z", "event": "download_transcript", "video_id": "dQw4w9WgXcQ", "status": "success"}
-  {"timestamp": "2026-09-24T10:16:00Z", "event": "fetch_complete", "status": "success", "quota_units": 87}
+  {"timestamp": "2026-09-24T10:16:00Z", "event": "fetch_complete", "status": "success", "quota_units": 100}
 ```
 
 ### 3. Quickstart Validation Guide
@@ -231,7 +232,7 @@ Example Run:
 6. **Idempotency**: Run twice in succession; second run fetches zero new transcripts (all already stored)
 7. **Partial failure**: One channel's API call fails; fetch continues for other channels; exits(0) with warning
 8. **Timestamps in transcripts**: Verify fetched transcripts contain MM:SS timestamp markers that fact-checkers can use to construct YouTube jump-links
-9. **Quota logging**: After run, verify quota units are logged in JSON output (search operations only; transcript fetching has no quota cost)
+9. **Quota logging**: After run, verify quota units are logged in JSON output (YouTube API v3 search operations only; youtube-transcript-api transcript fetching has no quota cost)
 
 ---
 

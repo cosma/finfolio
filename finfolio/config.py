@@ -8,8 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from google.auth.service_account import Credentials
-from google.oauth2 import service_account
+from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
@@ -26,38 +25,37 @@ def _log_config(event: str, status: str, **kwargs: Any) -> None:
     sys.stdout.flush()
 
 
-def load_credentials() -> Credentials:
-    """Load service account credentials from GOOGLE_APPLICATION_CREDENTIALS env var.
+def load_api_key() -> str:
+    """Load YouTube Data API key from .env file or YOUTUBE_API_KEY environment variable.
+
+    Tries in order:
+    1. YOUTUBE_API_KEY environment variable
+    2. .env file in current directory
+    3. Raises error if not found
 
     Returns:
-        Service account credentials for YouTube Data API v3
+        YouTube Data API key string
 
     Raises:
-        ValueError: If GOOGLE_APPLICATION_CREDENTIALS is not set or invalid
+        ValueError: If YOUTUBE_API_KEY is not found
     """
-    creds_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+    # Try to load from .env file first
+    env_file = Path(".env")
+    if env_file.exists():
+        load_dotenv(env_file)
+        _log_config("load_api_key", "success", source=".env file")
 
-    if not creds_path:
-        _log_config("load_credentials", "failed", error="GOOGLE_APPLICATION_CREDENTIALS_NOT_SET")
+    # Check environment variable (either from .env or system)
+    api_key = os.environ.get("YOUTUBE_API_KEY")
+
+    if not api_key:
+        _log_config("load_api_key", "failed", error="YOUTUBE_API_KEY_NOT_SET")
         raise ValueError(
-            "GOOGLE_APPLICATION_CREDENTIALS environment variable not set. "
-            "See docs/SERVICE_ACCOUNT_SETUP.md for setup instructions."
+            "YOUTUBE_API_KEY not found. Set it in .env file or as environment variable."
         )
 
-    if not Path(creds_path).exists():
-        _log_config("load_credentials", "failed", error="CREDENTIALS_FILE_NOT_FOUND", path=creds_path)
-        raise ValueError(f"Credentials file not found at {creds_path}")
-
-    try:
-        credentials = service_account.Credentials.from_service_account_file(
-            creds_path,
-            scopes=["https://www.googleapis.com/auth/youtube.readonly"]
-        )
-        _log_config("load_credentials", "success", source="service_account_file")
-        return credentials
-    except (ValueError, KeyError) as e:
-        _log_config("load_credentials", "failed", error=f"INVALID_CREDENTIALS: {str(e)}")
-        raise ValueError(f"Invalid service account credentials file at {creds_path}: {e}") from e
+    _log_config("load_api_key", "success")
+    return api_key
 
 
 def load_config(config_path: str) -> list[dict[str, Any]]:

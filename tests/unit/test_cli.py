@@ -39,7 +39,7 @@ class TestFetchCommand:
         config_file = Path(mock_config["config_path"])
         config_file.write_text("channels:\n  - channel_id: UCtest1\n    display_name: Test\n")
 
-        with patch("finfolio.cli.load_api_key", return_value="test-key"):
+        with patch("finfolio.cli.load_api_key", return_value="test-key-123"):
             with patch("finfolio.cli.load_config", return_value=mock_config["channels"]):
                 with patch("finfolio.cli.storage.acquire_lock", return_value=True):
                     with patch("finfolio.cli.storage.release_lock"):
@@ -54,7 +54,7 @@ class TestFetchCommand:
         from click.testing import CliRunner
         runner = CliRunner()
 
-        with patch("finfolio.cli.load_api_key", side_effect=ValueError("API key not found")):
+        with patch("finfolio.cli.load_api_key", side_effect=ValueError("YOUTUBE_API_KEY not set")):
             result = runner.invoke(main, ["fetch"])
             assert result.exit_code == 1
 
@@ -68,7 +68,7 @@ class TestFetchCommand:
         config_file = Path(mock_config["config_path"])
         config_file.write_text("channels:\n  - channel_id: UCtest1\n    display_name: Test\n")
 
-        with patch("finfolio.cli.load_api_key", return_value="test-key"):
+        with patch("finfolio.cli.load_api_key", return_value="test-key-123"):
             with patch("finfolio.cli.load_config", return_value=mock_config["channels"]):
                 with patch("finfolio.cli.storage.acquire_lock", mock_acquire_lock):
                     with patch("finfolio.cli.storage.release_lock"):
@@ -86,7 +86,7 @@ class TestFetchCommand:
         config_file = Path(mock_config["config_path"])
         config_file.write_text("channels:\n  - channel_id: UCtest1\n    display_name: Test\n")
 
-        with patch("finfolio.cli.load_api_key", return_value="test-key"):
+        with patch("finfolio.cli.load_api_key", return_value="test-key-123"):
             with patch("finfolio.cli.load_config", return_value=mock_config["channels"]):
                 with patch("finfolio.cli.storage.acquire_lock", return_value=False):
                     result = runner.invoke(main, ["fetch"])
@@ -102,7 +102,7 @@ class TestFetchCommand:
         config_file = Path(mock_config["config_path"])
         config_file.write_text("channels:\n  - channel_id: UCtest1\n    display_name: Test\n")
 
-        with patch("finfolio.cli.load_api_key", return_value="test-key"):
+        with patch("finfolio.cli.load_api_key", return_value="test-key-123"):
             with patch("finfolio.cli.load_config", return_value=mock_config["channels"]):
                 with patch("finfolio.cli.storage.acquire_lock", return_value=True):
                     with patch("finfolio.cli.storage.release_lock", mock_release_lock):
@@ -125,7 +125,7 @@ class TestFetchCommand:
         mock_monitor = MagicMock()
         mock_monitor.check_channel.side_effect = [Exception("API error"), []]
 
-        with patch("finfolio.cli.load_api_key", return_value="test-key"):
+        with patch("finfolio.cli.load_api_key", return_value="test-key-123"):
             with patch("finfolio.cli.load_config", return_value=channels):
                 with patch("finfolio.cli.storage.acquire_lock", return_value=True):
                     with patch("finfolio.cli.storage.release_lock"):
@@ -157,7 +157,7 @@ class TestFetchCommand:
 
         mock_save_metadata = MagicMock()
 
-        with patch("finfolio.cli.load_api_key", return_value="test-key"):
+        with patch("finfolio.cli.load_api_key", return_value="test-key-123"):
             with patch("finfolio.cli.load_config", return_value=mock_config["channels"]):
                 with patch("finfolio.cli.storage.acquire_lock", return_value=True):
                     with patch("finfolio.cli.storage.release_lock"):
@@ -174,7 +174,7 @@ class TestFetchCommand:
         from click.testing import CliRunner
         runner = CliRunner()
 
-        with patch("finfolio.cli.load_api_key", return_value="test-key"):
+        with patch("finfolio.cli.load_api_key", return_value="test-key-123"):
             with patch("finfolio.cli.load_config", return_value=[]):
                 with patch("finfolio.cli.storage.acquire_lock", return_value=True):
                     with patch("finfolio.cli.storage.release_lock"):

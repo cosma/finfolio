@@ -15,10 +15,10 @@ authors = [
 
 dependencies = [
     "google-api-python-client>=2.100.0",
-    "google-auth>=2.0.0",
-    "google-auth-httplib2>=0.2.0",
+    "youtube-transcript-api>=0.6.0",
     "pyyaml>=6.0",
     "click>=8.1.0",
+    "python-dotenv>=1.0.0",
 ]
 
 [project.optional-dependencies]

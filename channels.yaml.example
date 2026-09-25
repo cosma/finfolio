@@ -1,21 +1,20 @@
-# YouTube Channels Configuration for FinFolio
-# Add financial YouTube channels to monitor for new videos and fetch transcripts
+# FinFolio YouTube Channels Configuration
+#
+# Add financial/investment YouTube channels you want to monitor
+# Get channel IDs from YouTube: Go to channel → About → Copy the channel ID
 #
 # Format:
-#   channels:
-#     - channel_id: "YOUTUBE_CHANNEL_ID"
-#       display_name: "Channel Display Name"
-#
-# Example:
+# channels:
+#   - channel_id: "UCxxxxx"
+#     display_name: "Channel Name"
 
 channels:
+  # Example channels - replace with your own
   - channel_id: "UC7kCeZ53sli_9XwuQeFxLqw"
     display_name: "Ticker Symbol YOU"
-  - channel_id: "Tom Crosshill EU"
-    display_name: "thetomcrosshill"
-  - channel_id: "UC7_ZLN2t-U-tZ7CgzQ0OoXw"
-    display_name: "Graham Stephan"
-  - channel_id: "UC_x5XG1OV2P6uZZ5FSM9Ttw"
-    display_name: "Two Cents"
-  - channel_id: "UCF1DiS9jhNXqxPfj7pEj2lg"
-    display_name: "Andrei Jikh"
+  - channel_id: "UC9TwYQOO9mAxoF4v8ZioySg"
+    display_name: "Tom Crosshill EU"
+  
+  # Add more channels below:
+  # - channel_id: "UCxxxxx"
+  #   display_name: "Your Channel Name"

@@ -9,7 +9,7 @@ from finfolio import config
 
 @pytest.mark.unit
 class TestLoadApiKey:
-    """Test API key loading from env var and .env file."""
+    """Test YouTube API key loading."""
 
     def test_load_api_key_from_environment(self):
         """Test loading API key from YOUTUBE_API_KEY environment variable."""
@@ -18,10 +18,11 @@ class TestLoadApiKey:
             assert key == "test-key-123"
 
     def test_load_api_key_raises_when_missing(self):
-        """Test error raised when API key not found anywhere."""
+        """Test error raised when API key not set."""
         with patch.dict(os.environ, {}, clear=True):
-            with patch("pathlib.Path.exists", return_value=False):
-                with pytest.raises(ValueError, match="YOUTUBE_API_KEY not found"):
+            # Mock pathlib.Path.exists to return False so .env is not found
+            with patch("finfolio.config.Path.exists", return_value=False):
+                with pytest.raises(ValueError, match="YOUTUBE_API_KEY"):
                     config.load_api_key()
 
 

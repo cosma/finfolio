@@ -1,8 +1,64 @@
 # FinFolio
 Fact-checks for finance content
 
+## Quick Start
 
+FinFolio automatically discovers and transcribes new videos from configured YouTube financial channels, with MM:SS timestamps for fact-checking verification.
 
+### Setup (5 minutes)
+
+```bash
+# 1. Install dependencies
+pip install -r requirements.txt
+
+# 2. Get a YouTube API key
+#    Go to: https://console.cloud.google.com
+#    → APIs & Services → Credentials → Create API Key
+
+# 3. Set your API key
+export YOUTUBE_API_KEY=your-api-key-here
+
+# 4. Edit channels.yaml with YouTube financial channels to monitor
+#    Format:
+#    channels:
+#      - channel_id: UCxxxxx
+#        display_name: "Channel Name"
+
+# 5. Run the fetch
+make fetch
+```
+
+### What Happens
+
+```bash
+$ make fetch
+{"timestamp": "2026-09-24T...", "event": "fetch_start", "status": "success"}
+{"timestamp": "2026-09-24T...", "event": "fetch_channel", "status": "success", "new_videos": 2}
+{"timestamp": "2026-09-24T...", "event": "download_transcript", "status": "success", "video_id": "dQw4w9WgXcQ"}
+...
+```
+
+Transcripts are saved to `storage/transcripts/{video_id}.txt` with MM:SS timestamps:
+
+```
+00:00 Welcome to this video on investment strategies.
+00:15 Today we'll discuss three key principles.
+02:30 Many investors make the mistake of over-concentrating.
+```
+
+Fact-checkers can construct YouTube jump-links: `youtu.be/{video_id}?t=150` to verify claims directly in the video.
+
+### Testing
+
+```bash
+# Run all tests (uses mocked API, no key needed)
+make test
+
+# Run unit tests only
+pytest tests/unit/ -v
+```
+
+---
 
 ### Spec Kit 
 
@@ -132,15 +188,32 @@ channels:
 ### Usage
 
 ```bash
-# Run fetch command
+# Run fetch command (default: random 10-20 second delays)
 finfolio fetch
 
 # Use custom config file
 finfolio fetch --config /path/to/channels.yaml
 
+# Customize random delay range (min: 5-15 seconds)
+finfolio fetch --min-delay 5 --max-delay 15
+
+# More conservative delays (10-30 seconds)
+finfolio fetch --min-delay 10 --max-delay 30
+
+# Very conservative (20-40 seconds)
+finfolio fetch --min-delay 20 --max-delay 40
+
 # Show help
 finfolio fetch --help
 ```
+
+**Random Delay**: By default, the system adds random delays between 10-20 seconds between each transcript fetch. This mimics human behavior and prevents YouTube from blocking your IP. The randomization makes it harder for YouTube to detect automated requests.
+
+**Delay Options**:
+- `--min-delay`: Minimum seconds to wait (default: 10)
+- `--max-delay`: Maximum seconds to wait (default: 20)
+
+If you're still getting "YouTube is blocking requests from your IP" errors, increase both values (e.g., `--min-delay 30 --max-delay 60`).
 
 ### Output
 
@@ -231,8 +304,18 @@ $ finfolio fetch
 ### Exit Codes
 
 - `0` — Success (all channels fetched, transcripts saved)
-- `1` — General error (config, API auth, YAML parse error)
+- `1` — General error (config, API auth, YAML parse error, or YouTube IP blocked)
 - `2` — Another fetch is already running (lock file exists)
+
+**IP Block Handling**: If YouTube detects "too many requests" or blocks your IP during a fetch, the system immediately stops and exits with code `1`, rather than wasting time on failed requests. You'll see:
+```
+{"event": "download_transcript", "status": "failed", "video_id": "...", "error": "...too many requests..."}
+{"event": "fetch_failed", "status": "failed", "error": "IP_BLOCKED_BY_YOUTUBE", "message": "YouTube blocked your IP. Please wait and try again later."}
+```
+**What to do**: 
+- Wait **1-24 hours** before running `finfolio fetch` again (YouTube auto-unblocks after this)
+- Try with higher delays next time: `finfolio fetch --min-delay 30 --max-delay 60`
+- Already-fetched transcripts are saved and won't be re-fetched
 
 ### Constraints & Limits
 
