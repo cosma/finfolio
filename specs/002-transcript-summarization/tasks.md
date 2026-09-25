@@ -589,3 +589,41 @@ After each phase, verify:
 
 **Completion Status**: Append these 12 tasks to complete Phases 4, 6, 7, 8 and close MVP→Full scope gap
 
+---
+
+## Phase 10: Convergence (Dependency & Validation Closure)
+
+**Purpose**: Resolve critical blockers (dependencies, spec compliance verification) and finalize implementation validation
+
+**Status**: Implementation code exists but blockers prevent testing; spec compliance needs verification
+
+### Critical Path (Blocking All Tests)
+
+- [x] T087 Install LangChain dependencies to enable testing per F1 (missing) — run `uv sync` or `pip install langchain>=0.1.0 langchain-anthropic>=0.1.0 tiktoken>=0.5.0 anthropic` to resolve ModuleNotFoundError and enable test execution
+
+- [x] T088 Audit and verify LLM prompt in finfolio/summarizer.py per F2 (partial) — ensure prompt template explicitly instructs: (a) exclude sponsored/promotional content ("brought you by", "sponsored by" sections), (b) separate factual claims from opinions/forecasts/predictions, (c) classify claims as number/date/deal/company-fact/product-fact per spec FR-007 & US2/AC1-AC2
+
+- [x] T089 Update README.md with summarization module documentation per F5 (partial) — add section describing `finfolio summarize` command usage, options (--batch-size), output format (JSON), examples, and exit codes; reference quickstart.md for validation scenarios
+
+- [ ] T090 Execute end-to-end manual validation per F6 (partial) — run `finfolio summarize` on real test transcripts; verify (a) summary files created in storage/summaries/, (b) JSON output matches contracts/summary-output.schema.json, (c) metadata includes all required fields, (d) idempotency (re-run skips existing files), (e) cost calculations accurate
+
+### Secondary (Spec Compliance Verification)
+
+- [ ] T091 [P] Verify facts vs opinions separation implementation per F3 (partial) — confirm finfolio/summarizer_schema.py has Claim.type enum with values (number, date, deal, company-fact, product-fact); test quote verification logic in summarizer.py matches T039 spec (verify claim quotes are substrings of original transcript)
+
+- [ ] T092 [P] Verify cost tracking metadata completeness per F4 (partial) — audit SummaryOutput.metadata in finfolio/summarizer.py; confirm all instances include: input_tokens, output_tokens, cost_usd (calculated at Haiku rates: $0.80/1M input, $2.40/1M output), model, temperature, timestamp per T056 spec
+
+- [ ] T093 [P] Implement comprehensive error handling edge case tests per F7 (partial) — add to tests/test_summarizer.py: (a) malformed JSON from LLM response, (b) rate limit retry logic (mock 429, verify backoff), (c) UTF-8 encoding errors, (d) transcript > 1MB rejection, (e) API connection timeouts per Phase 7 spec
+
+- [ ] T094 [P] Update task completion status in tasks.md per F8 (unrequested) — audit actual implementation against Phase 1-8 task descriptions; mark completed tasks with [x] to provide accurate tracking of work done (e.g., if T023-T030 summarizer functions implemented, mark [x])
+
+### Validation & Handoff
+
+- [ ] T095 Run full test suite post-dependency-install per T087 — execute `pytest tests/ -v --cov=finfolio --cov-report=term-missing`; target >80% coverage on finfolio/summarizer.py and finfolio/cli.py
+
+- [ ] T096 Run type checking and linting per Phase 8 — execute `mypy finfolio/ tests/` and `ruff check finfolio/ tests/`; fix any errors or style violations
+
+- [ ] T097 Final convergence validation — verify all Phase 9-10 convergence tasks complete; all tests passing; all spec requirements (US1-US4, FR-001-FR-008, SC-001-SC-005) demonstrably met by code; constitution principles (I, III, VII) compliant
+
+**Completion Status**: 11 tasks to resolve critical blockers (T087), verify spec compliance (T088-T094), and validate implementation (T095-T097)
+
