@@ -8,8 +8,8 @@ FinFolio automatically discovers and transcribes new videos from configured YouT
 ### Setup (5 minutes)
 
 ```bash
-# 1. Install dependencies
-pip install -r requirements.txt
+# 1. Install dependencies with uv
+uv sync
 
 # 2. Get a YouTube API key
 #    Go to: https://console.cloud.google.com
@@ -25,13 +25,13 @@ export YOUTUBE_API_KEY=your-api-key-here
 #        display_name: "Channel Name"
 
 # 5. Run the fetch
-make fetch
+uv run finfolio fetch
 ```
 
 ### What Happens
 
 ```bash
-$ make fetch
+$ uv run finfolio fetch
 {"timestamp": "2026-09-24T...", "event": "fetch_start", "status": "success"}
 {"timestamp": "2026-09-24T...", "event": "fetch_channel", "status": "success", "new_videos": 2}
 {"timestamp": "2026-09-24T...", "event": "download_transcript", "status": "success", "video_id": "dQw4w9WgXcQ"}
@@ -52,10 +52,10 @@ Fact-checkers can construct YouTube jump-links: `youtu.be/{video_id}?t=150` to v
 
 ```bash
 # Run all tests (uses mocked API, no key needed)
-make test
+uv run pytest tests/ -v
 
 # Run unit tests only
-pytest tests/unit/ -v
+uv run pytest tests/unit/ -v
 ```
 
 ---
@@ -353,4 +353,211 @@ uv run mypy finfolio/
 
 # Format code
 uv run ruff format finfolio/ tests/
+```
+
+---
+
+## Transcript Summarization Module
+
+The `finfolio summarize` command processes transcripts (from `finfolio fetch`) using Claude AI to extract plain-language summaries and discrete factual claims for downstream fact-checking.
+
+### Quick Start
+
+```bash
+# Set Anthropic API key
+export ANTHROPIC_API_KEY=your-anthropic-api-key-here
+
+# Summarize all unsummarized transcripts
+uv run finfolio summarize
+
+# Use custom batch size (limit files per run)
+uv run finfolio summarize --batch-size 50
+```
+
+### What It Does
+
+1. **Discovers pending transcripts**: Scans `storage/transcripts/` for unsummarized videos
+2. **Calls Claude Haiku**: Sends each transcript to Claude via LangChain for summarization
+3. **Extracts facts from opinions**: Separates verifiable claims (numbers, dates, deals) from opinions/forecasts
+4. **Filters sponsored content**: Removes sections advertising products/affiliates per FinFolio Constitution
+5. **Saves structured JSON**: Outputs to `storage/summaries/{video_id}.json` with summary, claims, and metadata
+6. **Tracks costs**: Logs token usage and API cost per transcript
+
+### Configuration
+
+#### Anthropic API Key
+
+Set the `ANTHROPIC_API_KEY` environment variable or create a `.env` file:
+
+```bash
+# Option A: Environment variable
+export ANTHROPIC_API_KEY=your-anthropic-api-key-here
+
+# Option B: .env file
+cp .env.example .env
+# Edit .env and add: ANTHROPIC_API_KEY=your-key
+```
+
+#### LLM Model Selection
+
+By default, uses `claude-haiku-4-5-20251001` (cheap, fast for summarization).
+
+Override with environment variable:
+
+```bash
+export FINFOLIO_LLM_MODEL_SUMMARIZATION=claude-opus-4-1-20250805  # More capable but slower/pricier
+```
+
+### Usage
+
+```bash
+# Summarize all pending transcripts
+uv run finfolio summarize
+
+# Summarize with custom batch size
+uv run finfolio summarize --batch-size 25
+
+# Show help
+uv run finfolio summarize --help
+```
+
+### Output Format
+
+The command outputs structured JSON logs to stdout (one object per line):
+
+```json
+{"timestamp": "2026-09-25T10:15:30Z", "event": "summarization_start", "status": "success"}
+{"timestamp": "2026-09-25T10:15:35Z", "event": "transcript_processed", "video_id": "dQw4w9WgXcQ", "claims_count": 12, "cost_usd": 0.042}
+{"timestamp": "2026-09-25T10:15:45Z", "event": "transcript_error", "video_id": "jNQXAC9IVRw", "error": "Transcript too short"}
+{"timestamp": "2026-09-25T10:15:50Z", "event": "summarization_complete", "status": "success", "processed": 5, "errors": 1, "skipped": 2, "total_cost_usd": 0.187}
+```
+
+### Output Schema
+
+Each summary file (`storage/summaries/{video_id}.json`) contains:
+
+```json
+{
+  "summary": "Plain-language summary (150-400 words) of key investment insights from the video",
+  "claims": [
+    {
+      "type": "number|date|deal|company-fact|product-fact",
+      "claim": "The factual statement",
+      "quote": "Exact text from transcript",
+      "source_timestamp": "MM:SS or null",
+      "confidence_score": 0.0-1.0 or null
+    }
+  ],
+  "metadata": {
+    "transcript_tokens": 2847,
+    "input_tokens": 2847,
+    "output_tokens": 312,
+    "cost_usd": 0.042,
+    "model": "claude-haiku-4-5-20251001",
+    "temperature": 0.3,
+    "timestamp": "2026-09-25T10:15:35Z",
+    "transcript_truncated": false
+  }
+}
+```
+
+### Features
+
+- **Facts vs. Opinions Separation**: Extracts only verifiable factual claims (numbers, dates, named deals); excludes opinions, forecasts, and predictions
+- **Sponsored Content Filtering**: Automatically removes sections advertising products or affiliate links per Constitution Principle V
+- **Structured Extraction**: Each claim includes type, quote, optional timestamp, and confidence score
+- **Idempotent Processing**: Safe to run repeatedly; existing summaries are skipped (unless deleted)
+- **Cost Tracking**: Logs token usage and estimated cost per transcript for budget monitoring
+- **Atomic Writes**: Uses `.tmp` file pattern to ensure data integrity
+- **Error Resilience**: Implements exponential backoff and retry logic for API transients (rate limits, timeouts)
+- **LangChain Abstraction**: All LLM calls via LangChain + ChatAnthropic (not direct API)
+- **Temperature Control**: Uses temperature=0.3 for deterministic, precise summarization per Constitution Principle VII
+
+### Exit Codes
+
+- `0` — Success (at least one transcript processed or skipped)
+- `1` — Critical error (missing API key, no transcripts found, all transcripts failed)
+
+### Example Workflow
+
+```bash
+# 1. Fetch transcripts from YouTube
+$ uv run finfolio fetch
+{"event": "fetch_complete", "status": "success", "new_videos": 5}
+
+# 2. Summarize the transcripts
+$ uv run finfolio summarize
+{"event": "summarization_start", "status": "success"}
+{"event": "transcript_processed", "video_id": "dQw4w9WgXcQ", "claims_count": 12, "cost_usd": 0.042}
+{"event": "transcript_processed", "video_id": "jNQXAC9IVRw", "claims_count": 8, "cost_usd": 0.035}
+{"event": "summarization_complete", "status": "success", "processed": 2, "errors": 0, "skipped": 3, "total_cost_usd": 0.077}
+
+# 3. Inspect a summary
+$ cat storage/summaries/dQw4w9WgXcQ.json | jq .claims
+[
+  {
+    "type": "number",
+    "claim": "Apple's stock price reached $195.42",
+    "quote": "Apple closed at $195.42 today",
+    "source_timestamp": "02:15",
+    "confidence_score": 0.95
+  },
+  {
+    "type": "deal",
+    "claim": "Microsoft acquired Activision for $68.7 billion",
+    "quote": "The Microsoft-Activision deal closed for $68.7B",
+    "source_timestamp": "05:30",
+    "confidence_score": 0.98
+  }
+]
+
+# 4. Run again (idempotent - skip existing summaries)
+$ uv run finfolio summarize
+{"event": "summarization_complete", "status": "success", "processed": 0, "errors": 0, "skipped": 5, "total_cost_usd": 0.0}
+```
+
+### Cost Monitoring
+
+Each transcript costs $0.01-0.05 USD with Haiku model. For ~20-30 videos/week:
+
+```
+Expected weekly cost: $0.20-1.50 (well within Constitutional limit)
+Expected monthly cost: $0.80-6.00
+```
+
+Check total cost in final `summarization_complete` log event.
+
+### Troubleshooting
+
+**"ANTHROPIC_API_KEY not found"**
+- Set environment variable: `export ANTHROPIC_API_KEY=your-key`
+- Or add to `.env` file
+
+**"ModuleNotFoundError: No module named 'langchain'"**
+- Install dependencies: `uv sync`
+
+**"No transcripts found"**
+- Run `uv run finfolio fetch` first to download transcripts
+- Check that `storage/transcripts/` contains `.txt` files
+
+**"Transcript too short / empty"**
+- Some videos may not have captions or may be too short (minimum 50 characters)
+- These are logged and skipped; processing continues with next transcript
+
+**"LLM API error after retries"**
+- Check your `ANTHROPIC_API_KEY` is valid
+- If rate-limited, the system automatically retries with exponential backoff (1s, 2s, 4s)
+- Wait a few minutes and run again
+
+### Testing
+
+```bash
+# Run all tests (unit + integration)
+uv run pytest tests/ -v
+
+# Run summarization tests only
+uv run pytest tests/test_summarizer*.py -v
+
+# Run with coverage
+uv run pytest tests/ --cov=finfolio.summarizer --cov-report=html
 ```

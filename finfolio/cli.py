@@ -1,5 +1,7 @@
 """CLI entry point for finfolio fetch command."""
+
 import json
+import os
 import random
 import sys
 import time
@@ -20,7 +22,7 @@ def _log_event(event: str, status: str, **kwargs) -> None:
         "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "event": event,
         "status": status,
-        **kwargs
+        **kwargs,
     }
     print(json.dumps(log_entry, default=str))
     sys.stdout.flush()
@@ -36,8 +38,18 @@ def main(ctx: click.Context, config: str) -> None:
 
 
 @main.command()
-@click.option("--min-delay", default=10, type=float, help="Minimum delay in seconds between transcript fetches (default: 10)")
-@click.option("--max-delay", default=20, type=float, help="Maximum delay in seconds between transcript fetches (default: 20)")
+@click.option(
+    "--min-delay",
+    default=10,
+    type=float,
+    help="Minimum delay in seconds between transcript fetches (default: 10)",
+)
+@click.option(
+    "--max-delay",
+    default=20,
+    type=float,
+    help="Maximum delay in seconds between transcript fetches (default: 20)",
+)
 @click.pass_context
 def fetch(ctx: click.Context, min_delay: float, max_delay: float) -> None:
     """Check configured channels for new videos and fetch transcripts."""
@@ -100,8 +112,13 @@ def fetch(ctx: click.Context, min_delay: float, max_delay: float) -> None:
                     processed_channels += 1
                     total_new_videos += len(new_videos)
 
-                    _log_event("fetch_channel", "success", channel_id=channel_id,
-                              display_name=display_name, new_videos=len(new_videos))
+                    _log_event(
+                        "fetch_channel",
+                        "success",
+                        channel_id=channel_id,
+                        display_name=display_name,
+                        new_videos=len(new_videos),
+                    )
 
                     # Fetch transcripts for new videos
                     for i, video in enumerate(new_videos):
@@ -114,30 +131,48 @@ def fetch(ctx: click.Context, min_delay: float, max_delay: float) -> None:
                             video_id=video_id,
                             title=video.get("title", "Unknown"),
                             channel_id=channel_id,
-                            published_at=video.get("published_at", "")
+                            published_at=video.get("published_at", ""),
                         )
 
                         if transcript_fetcher.has_transcript(video_id):
-                            _log_event("download_transcript", "skipped", video_id=video_id,
-                                      reason="already_exists")
+                            _log_event(
+                                "download_transcript",
+                                "skipped",
+                                video_id=video_id,
+                                reason="already_exists",
+                            )
                         else:
                             try:
                                 if transcript_fetcher.fetch_and_save(video_id):
                                     total_transcripts_saved += 1
                                     _log_event("download_transcript", "success", video_id=video_id)
                                 else:
-                                    _log_event("download_transcript", "failed", video_id=video_id,
-                                              reason="no_captions")
+                                    _log_event(
+                                        "download_transcript",
+                                        "failed",
+                                        video_id=video_id,
+                                        reason="no_captions",
+                                    )
                             except Exception as e:
                                 error_str = str(e)
-                                _log_event("download_transcript", "failed", video_id=video_id,
-                                          error=error_str)
+                                _log_event(
+                                    "download_transcript",
+                                    "failed",
+                                    video_id=video_id,
+                                    error=error_str,
+                                )
 
                                 # Check if YouTube has blocked our IP (various error messages)
-                                if "too many requests" in error_str.lower() or "blocked" in error_str.lower():
-                                    _log_event("fetch_failed", "failed",
-                                              error="IP_BLOCKED_BY_YOUTUBE",
-                                              message="YouTube blocked your IP. Please wait and try again later.")
+                                if (
+                                    "too many requests" in error_str.lower()
+                                    or "blocked" in error_str.lower()
+                                ):
+                                    _log_event(
+                                        "fetch_failed",
+                                        "failed",
+                                        error="IP_BLOCKED_BY_YOUTUBE",
+                                        message="YouTube blocked your IP. Please wait and try again later.",
+                                    )
                                     storage.release_lock()
                                     sys.exit(1)
 
@@ -151,8 +186,7 @@ def fetch(ctx: click.Context, min_delay: float, max_delay: float) -> None:
                     storage.update_channel_last_fetch(channel_id, datetime.now(UTC))
 
                 except Exception as e:
-                    _log_event("fetch_channel", "failed", channel_id=channel_id,
-                              error=str(e))
+                    _log_event("fetch_channel", "failed", channel_id=channel_id, error=str(e))
                     continue
 
             # Get quota usage
@@ -160,12 +194,15 @@ def fetch(ctx: click.Context, min_delay: float, max_delay: float) -> None:
             total_quota_used = sum(quota_usage.values())
 
             # Final report
-            _log_event("fetch_complete", "success",
-                      channels_processed=processed_channels,
-                      new_videos_found=total_new_videos,
-                      transcripts_saved=total_transcripts_saved,
-                      quota_units=total_quota_used,
-                      quota_breakdown=quota_usage)
+            _log_event(
+                "fetch_complete",
+                "success",
+                channels_processed=processed_channels,
+                new_videos_found=total_new_videos,
+                transcripts_saved=total_transcripts_saved,
+                quota_units=total_quota_used,
+                quota_breakdown=quota_usage,
+            )
 
             sys.exit(0)
 
@@ -175,6 +212,151 @@ def fetch(ctx: click.Context, min_delay: float, max_delay: float) -> None:
 
     except Exception as e:
         _log_event("fetch_failed", "failed", error=str(e))
+        sys.exit(1)
+
+
+@main.command()
+@click.option("--batch-size", default=100, type=int, help="Maximum transcripts to process per run")
+@click.pass_context
+def summarize(ctx: click.Context, batch_size: int) -> None:
+    """Summarize all unsummarized transcripts using Claude."""
+    try:
+        from finfolio.summarizer import (
+            InvalidOutputError,
+            LLMAPIError,
+            TranscriptTooLongError,
+            TranscriptTooShortError,
+            process_transcript_safe,
+        )
+
+        # Verify API credentials
+        if not os.getenv("ANTHROPIC_API_KEY"):
+            _log_event("summarization_failed", "failed", error="ANTHROPIC_API_KEY not set")
+            sys.exit(1)
+
+        _log_event("summarization_start", "success")
+
+        # Get transcripts directory
+        transcripts_dir = storage.TRANSCRIPTS_DIR
+        if not transcripts_dir.exists():
+            _log_event(
+                "summarization_failed", "failed", error="Transcripts directory does not exist"
+            )
+            sys.exit(1)
+
+        # Find all unsummarized transcripts
+        transcript_files = sorted(transcripts_dir.glob("*.txt"))
+        processed_count = 0
+        error_count = 0
+        skipped_count = 0
+        total_cost_usd = 0.0
+
+        for _i, transcript_file in enumerate(transcript_files[:batch_size]):
+            video_id = transcript_file.stem
+            try:
+                transcript_text = transcript_file.read_text(encoding="utf-8")
+                result = process_transcript_safe(video_id, transcript_text)
+
+                if result is None:
+                    # Already summarized, skipped
+                    skipped_count += 1
+                else:
+                    processed_count += 1
+                    cost = result.metadata.cost_usd or 0.0
+                    total_cost_usd += cost
+                    _log_event(
+                        "transcript_processed",
+                        "success",
+                        video_id=video_id,
+                        claims_count=len(result.claims),
+                        cost_usd=round(cost, 6),
+                    )
+
+            except TranscriptTooShortError as e:
+                error_count += 1
+                _log_event(
+                    "transcript_error",
+                    "failed",
+                    video_id=video_id,
+                    error=f"Transcript validation: {str(e)}",
+                )
+            except TranscriptTooLongError as e:
+                error_count += 1
+                _log_event(
+                    "transcript_error",
+                    "failed",
+                    video_id=video_id,
+                    error=f"Transcript too long: {str(e)}",
+                )
+            except LLMAPIError as e:
+                error_msg = str(e)
+                _log_event(
+                    "transcript_error",
+                    "failed",
+                    video_id=video_id,
+                    error_type="LLMAPIError",
+                    error_details=error_msg,
+                )
+                _log_event(
+                    "summarization_failed",
+                    "failed",
+                    reason="LLM API failure",
+                    video_id=video_id,
+                    details=error_msg,
+                )
+                sys.exit(1)
+            except InvalidOutputError as e:
+                error_msg = str(e)
+                _log_event(
+                    "transcript_error",
+                    "failed",
+                    video_id=video_id,
+                    error_type="InvalidOutputError",
+                    error_details=error_msg,
+                )
+                _log_event(
+                    "summarization_failed",
+                    "failed",
+                    reason="Invalid LLM output",
+                    video_id=video_id,
+                    details=error_msg,
+                )
+                sys.exit(1)
+            except Exception as e:
+                error_msg = str(e)
+                _log_event(
+                    "transcript_error",
+                    "failed",
+                    video_id=video_id,
+                    error_type=type(e).__name__,
+                    error_details=error_msg,
+                )
+                _log_event(
+                    "summarization_failed",
+                    "failed",
+                    reason="Unexpected error",
+                    video_id=video_id,
+                    details=error_msg,
+                )
+                sys.exit(1)
+
+        # Final report
+        _log_event(
+            "summarization_complete",
+            "success" if error_count == 0 else "partial",
+            processed=processed_count,
+            errors=error_count,
+            skipped=skipped_count,
+            total_cost_usd=round(total_cost_usd, 6),
+        )
+
+        # Exit with appropriate code
+        if error_count > 0 and processed_count == 0:
+            sys.exit(1)  # All failed
+        sys.exit(0)  # At least some succeeded
+
+    except Exception as e:
+        _log_event("summarization_failed", "failed", error=str(e))
         sys.exit(1)
 
 

@@ -163,6 +163,23 @@ fetch-config: ## Run finfolio fetch with custom config file (CONFIG=path/to/chan
 	@echo "$(BLUE)Running finfolio fetch with custom config: $(CONFIG)$(NC)"
 	$(UV) run finfolio fetch --config $(CONFIG)
 
+summary: ## Run finfolio summarize to process transcripts into summaries + claims
+	@if [ ! -f .env ]; then \
+		echo "$(YELLOW)⚠ .env file not found. Please run: make config$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)╔═══════════════════════════════════════════════════════════╗$(NC)"
+	@echo "$(BLUE)║  Starting Transcript Summarization                        ║$(NC)"
+	@echo "$(BLUE)╚═══════════════════════════════════════════════════════════╝$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Processing all unsummarized transcripts from storage/transcripts/$(NC)"
+	@echo ""
+	@set -a; source .env; set +a; $(UV) run finfolio summarize --batch-size 100
+	@echo ""
+	@echo "$(GREEN)✓ Summarization complete!$(NC)"
+	@echo "$(BLUE)Results saved to:$(NC) storage/summaries/"
+	@echo ""
+
 fetch-dry-run: ## Simulate fetch without downloading (for testing)
 	@echo "$(BLUE)Simulating fetch (dry-run)...$(NC)"
 	@echo "Note: Dry-run not yet implemented. Use 'make fetch' to test with real API."
@@ -304,3 +321,4 @@ setup: install config config-channels ## Complete setup (install deps + create c
 	@echo "  $(GREEN)make test$(NC)          - Run the test suite"
 	@echo "  $(GREEN)make quality$(NC)       - Run linting and type checks"
 	@echo "  $(GREEN)make help$(NC)          - Show this help message"
+
