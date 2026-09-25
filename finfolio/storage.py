@@ -9,6 +9,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 STORAGE_DIR = Path("storage")
 TRANSCRIPTS_DIR = STORAGE_DIR / "transcripts"
+SUMMARIES_DIR = STORAGE_DIR / "summaries"
 STATE_FILE = STORAGE_DIR / ".finfolio-state.json"
 LOCK_FILE = STORAGE_DIR / ".finfolio.lock"
 
@@ -163,3 +164,36 @@ def get_videos_by_channel(channel_id: str) -> list[dict[str, Any]]:
             videos.append({**metadata, "video_id": video_id})
 
     return videos
+
+
+def ensure_summaries_dir() -> None:
+    """Create storage/summaries/ directory if missing."""
+    SUMMARIES_DIR.mkdir(parents=True, exist_ok=True)
+    _log_operation("storage_init", "success", message="Summaries directory ready")
+
+
+def has_summary(video_id: str) -> bool:
+    """Check if summary file exists for a video."""
+    return (SUMMARIES_DIR / f"{video_id}.json").exists()
+
+
+def get_summaries_dir() -> Path:
+    """Return path to summaries directory."""
+    return SUMMARIES_DIR
+
+
+def save_summary(video_id: str, summary_data: dict[str, Any]) -> None:
+    """Save summary to file using atomic .tmp pattern."""
+    ensure_summaries_dir()
+    summary_file = SUMMARIES_DIR / f"{video_id}.json"
+    tmp_file = SUMMARIES_DIR / f"{video_id}.json.tmp"
+
+    try:
+        # Write to temporary file first
+        tmp_file.write_text(json.dumps(summary_data, indent=2, default=str), encoding="utf-8")
+        # Atomic rename
+        tmp_file.replace(summary_file)
+        _log_operation("summary_saved", "success", video_id=video_id)
+    except Exception as e:
+        _log_operation("summary_save_failed", "failed", video_id=video_id, error=str(e))
+        raise

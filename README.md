@@ -8,8 +8,8 @@ FinFolio automatically discovers and transcribes new videos from configured YouT
 ### Setup (5 minutes)
 
 ```bash
-# 1. Install dependencies
-pip install -r requirements.txt
+# 1. Install dependencies with uv
+uv sync
 
 # 2. Get a YouTube API key
 #    Go to: https://console.cloud.google.com
@@ -25,13 +25,13 @@ export YOUTUBE_API_KEY=your-api-key-here
 #        display_name: "Channel Name"
 
 # 5. Run the fetch
-make fetch
+uv run finfolio fetch
 ```
 
 ### What Happens
 
 ```bash
-$ make fetch
+$ uv run finfolio fetch
 {"timestamp": "2026-09-24T...", "event": "fetch_start", "status": "success"}
 {"timestamp": "2026-09-24T...", "event": "fetch_channel", "status": "success", "new_videos": 2}
 {"timestamp": "2026-09-24T...", "event": "download_transcript", "status": "success", "video_id": "dQw4w9WgXcQ"}
@@ -52,10 +52,10 @@ Fact-checkers can construct YouTube jump-links: `youtu.be/{video_id}?t=150` to v
 
 ```bash
 # Run all tests (uses mocked API, no key needed)
-make test
+uv run pytest tests/ -v
 
 # Run unit tests only
-pytest tests/unit/ -v
+uv run pytest tests/unit/ -v
 ```
 
 ---
