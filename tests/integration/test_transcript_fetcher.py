@@ -1,4 +1,5 @@
 """Integration tests for transcript fetching."""
+
 import pytest
 
 

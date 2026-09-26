@@ -1,4 +1,5 @@
 """Unit tests for channel monitor module."""
+
 from unittest.mock import patch
 
 import pytest
@@ -15,8 +16,18 @@ class TestChannelMonitor:
         monitor = ChannelMonitor(mock_youtube_client)
 
         mock_youtube_client.search_channel_videos.return_value = [
-            {"video_id": "vid1", "title": "Video 1", "channel_id": "UCtest", "published_at": "2026-09-24T10:00:00Z"},
-            {"video_id": "vid2", "title": "Video 2", "channel_id": "UCtest", "published_at": "2026-09-24T11:00:00Z"},
+            {
+                "video_id": "vid1",
+                "title": "Video 1",
+                "channel_id": "UCtest",
+                "published_at": "2026-09-24T10:00:00Z",
+            },
+            {
+                "video_id": "vid2",
+                "title": "Video 2",
+                "channel_id": "UCtest",
+                "published_at": "2026-09-24T11:00:00Z",
+            },
         ]
 
         with patch("finfolio.channel_monitor.has_transcript", return_value=False):

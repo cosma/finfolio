@@ -1,4 +1,6 @@
 """Pytest fixtures for finfolio tests."""
+
+import sys
 from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -6,6 +8,11 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+# Add src/ to path for Module 3 imports (before test collection)
+_src_path = str(Path(__file__).parent.parent / "src")
+if _src_path not in sys.path:
+    sys.path.insert(0, _src_path)
 
 
 @pytest.fixture
@@ -53,7 +60,9 @@ def mock_youtube_client() -> MagicMock:
             "video_id": "jNQXAC9IVRw",
             "title": "Sample Video 2",
             "channel_id": "UC7_ZLN2t-U-tZ7CgzQ0OoXw",
-            "published_at": (datetime.now(UTC) - timedelta(days=1)).isoformat().replace("+00:00", "Z"),
+            "published_at": (datetime.now(UTC) - timedelta(days=1))
+            .isoformat()
+            .replace("+00:00", "Z"),
         },
     ]
 

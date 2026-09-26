@@ -197,3 +197,125 @@ def save_summary(video_id: str, summary_data: dict[str, Any]) -> None:
     except Exception as e:
         _log_operation("summary_save_failed", "failed", video_id=video_id, error=str(e))
         raise
+
+
+# Fact-checking module (Module 3) storage functions
+
+REPORTS_DIR = STORAGE_DIR / "reports" / "videos"
+
+
+def ensure_reports_dir() -> None:
+    """Create storage/reports/videos/ directory if missing."""
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    _log_operation("storage_init", "success", message="Reports directory ready")
+
+
+def save_report(video_id: str, report_data: dict[str, Any]) -> None:
+    """Save fact-checking report to file using atomic .tmp pattern.
+
+    Validates report_data against ReportModel schema before writing.
+    Creates storage/reports/videos/ directory if missing.
+    """
+    from finfolio.models import ReportModel
+
+    ensure_reports_dir()
+
+    try:
+        # Validate report_data against schema
+        ReportModel(**report_data)
+    except Exception as e:
+        _log_operation(
+            "report_validation_failed",
+            "failed",
+            video_id=video_id,
+            error=str(e)
+        )
+        raise
+
+    report_file = REPORTS_DIR / f"{video_id}.json"
+    tmp_file = REPORTS_DIR / f"{video_id}.json.tmp"
+
+    try:
+        # Write to temporary file first
+        tmp_file.write_text(
+            json.dumps(report_data, indent=2, default=str),
+            encoding="utf-8"
+        )
+        # Atomic rename
+        tmp_file.replace(report_file)
+        _log_operation("report_saved", "success", video_id=video_id)
+    except Exception as e:
+        _log_operation(
+            "report_save_failed",
+            "failed",
+            video_id=video_id,
+            error=str(e)
+        )
+        raise
+
+
+def has_report(video_id: str) -> bool:
+    """Check if fact-checking report exists for a video.
+
+    Returns False if reports directory is missing.
+    """
+    if not REPORTS_DIR.exists():
+        _log_operation(
+            "reports_dir_missing",
+            "warning",
+            message="storage/reports/videos/ directory does not exist"
+        )
+        return False
+    return (REPORTS_DIR / f"{video_id}.json").exists()
+
+
+def load_summary(video_id: str) -> dict[str, Any] | None:
+    """Load summary from storage/summaries/{video_id}.json.
+
+    Returns None if missing.
+    Raises ValueError if JSON is invalid.
+    """
+    summary_file = SUMMARIES_DIR / f"{video_id}.json"
+
+    if not summary_file.exists():
+        return None
+
+    try:
+        content = summary_file.read_text(encoding="utf-8")
+        return json.loads(content)
+    except json.JSONDecodeError as e:
+        _log_operation(
+            "summary_load_failed",
+            "failed",
+            video_id=video_id,
+            error=f"Invalid JSON: {str(e)}"
+        )
+        raise ValueError(f"Invalid JSON in summary file for {video_id}: {str(e)}") from e
+    except Exception as e:
+        _log_operation(
+            "summary_load_failed",
+            "failed",
+            video_id=video_id,
+            error=str(e)
+        )
+        raise
+
+
+def list_pending_videos() -> list[str]:
+    """List video IDs with summaries but no reports.
+
+    Scans storage/summaries/ and returns video_ids that don't have
+    corresponding reports in storage/reports/videos/.
+    """
+    ensure_summaries_dir()
+
+    if not SUMMARIES_DIR.exists():
+        return []
+
+    pending = []
+    for summary_file in SUMMARIES_DIR.glob("*.json"):
+        video_id = summary_file.stem  # filename without .json
+        if not has_report(video_id):
+            pending.append(video_id)
+
+    return sorted(pending)

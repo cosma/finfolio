@@ -561,3 +561,145 @@ uv run pytest tests/test_summarizer*.py -v
 # Run with coverage
 uv run pytest tests/ --cov=finfolio.summarizer --cov-report=html
 ```
+---
+
+## Fact-Checking Module
+
+The `finfolio factcheck` command fact-checks extracted claims from video summaries using web search and Claude LLM.
+
+### Installation
+
+```bash
+# Install dependencies (includes LangChain, Tavily)
+uv sync
+```
+
+### Configuration
+
+Set these environment variables (or add to `.env`):
+
+```bash
+export ANTHROPIC_API_KEY=your-anthropic-api-key
+export TAVILY_API_KEY=your-tavily-api-key
+export FINFOLIO_LLM_MODEL=claude-haiku-4-5-20251001  # Default (cheap)
+export FINFOLIO_LOG_LEVEL=INFO
+```
+
+### Usage
+
+```bash
+# Process all pending summaries
+finfolio factcheck
+
+# Process single video
+finfolio factcheck --video-id dQw4w9WgXcQ
+
+# Limit batch size
+finfolio factcheck --limit 5
+
+# Verbose output (DEBUG logging)
+finfolio factcheck --verbose
+```
+
+### Features
+
+- **Claim Verification**: Uses Tavily web search + Claude LLM (temperature=0 for determinism)
+- **Resumability**: If fact-checking fails mid-video, next run skips already-verified claims
+- **Opinion Skipping**: Automatically skips opinion/forecast claims (no fact-checking applied)
+- **Atomic Writes**: `.tmp` file pattern ensures crash safety
+- **Idempotency**: Running twice produces identical results
+- **Cost Tracking**: All search + LLM costs are logged per video
+- **Error Recovery**: Timeouts, quota limits, and errors yield "Unverified" verdicts
+
+### Output
+
+Reports are saved to `storage/reports/videos/{video_id}.json`:
+
+```json
+{
+  "video_id": "dQw4w9WgXcQ",
+  "title": "Apple Q3 Earnings",
+  "verdict_count": 15,
+  "verdicts": [
+    {
+      "claim_id": "claim_001",
+      "claim_text": "Apple stock closed at $195.42",
+      "verdict": "True",
+      "note": "Verified against Yahoo Finance",
+      "source_url": "https://finance.yahoo.com/quote/AAPL",
+      "source_date": "2026-09-25"
+    }
+  ],
+  "verdict_breakdown": {
+    "True": 10,
+    "Partially supported/overstated": 2,
+    "Unverified": 2,
+    "False": 1
+  },
+  "cost": {"search_usd": 0.02, "llm_usd": 0.01, "total_usd": 0.03},
+  "disclaimer": "FinFolio reports facts and their accuracy. This is not financial advice."
+}
+```
+
+### Architecture
+
+```
+finfolio/
+├── fact_checker.py              # Core fact-checking orchestrator
+├── models.py                    # Pydantic schemas (Claim, Verdict, Report)
+├── cli.py                       # CLI command (finfolio factcheck)
+├── config.py                    # Configuration management
+├── logging_utils.py             # Structured JSON logging
+├── search/
+│   └── tavily_client.py        # Tavily web search wrapper
+└── llm/
+    ├── cost_tracking.py        # LangChain cost monitoring
+    └── prompts.py              # Verdict reasoning prompts
+```
+
+### Testing
+
+```bash
+# Run fact-checking tests
+uv run pytest tests/unit/test_fact_checker*.py -v
+uv run pytest tests/integration/test_fact_check*.py -v
+uv run pytest tests/integration/test_resumability.py -v
+
+# Full test suite
+uv run pytest tests/ --cov=finfolio --cov-report=html
+```
+
+### Troubleshooting
+
+**"TAVILY_API_KEY not set"**
+- Get a key from [tavily.com](https://tavily.com/)
+- Set: `export TAVILY_API_KEY=your-key`
+
+**"No pending videos to process"**
+- Run `finfolio summarize` first to create summaries
+- Or use `--video-id` to process a specific video
+
+**"Search timeout" verdicts**
+- Normal for slow internet or heavy load
+- Next run will retry (resumability)
+- Consider increasing `FINFOLIO_SEARCH_TIMEOUT`
+
+**"Unverified" on all claims**
+- Check Tavily API key and quota
+- Verify internet connection
+- Run with `--verbose` to see search queries
+
+### Cost Estimation
+
+With Haiku model (cheap):
+- Per video: $0.01-0.05 (10-30 claims)
+- Per week (20 videos): $0.20-1.00
+- Per month: $0.80-4.00
+
+All costs are logged and reported per video.
+
+---
+
+**For complete implementation details, see:**
+- `specs/003-fact-checking-module/` - Full specification
+- `IMPLEMENTATION_SUMMARY.md` - Architecture decisions

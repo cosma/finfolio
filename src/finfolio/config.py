@@ -1,8 +1,10 @@
-"""Configuration loading for finfolio."""
+"""Configuration management for finfolio."""
+
 import json
 import logging
 import os
 import sys
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -19,7 +21,7 @@ def _log_config(event: str, status: str, **kwargs: Any) -> None:
         "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "event": event,
         "status": status,
-        **kwargs
+        **kwargs,
     }
     print(json.dumps(log_entry, default=str))
     sys.stdout.flush()
@@ -88,3 +90,59 @@ def load_config(config_path: str) -> list[dict[str, Any]]:
     except yaml.YAMLError as e:
         _log_config("load_config", "failed", path=config_path, error=f"INVALID_YAML: {str(e)}")
         raise ValueError(f"Invalid YAML in {config_path}: {e}") from e
+
+
+@dataclass
+class Config:
+    """Configuration for fact-checking pipeline.
+
+    Reads from environment variables with sensible defaults.
+    Model selection is configuration-only (never hardcoded).
+    """
+
+    # Storage location
+    storage_dir: str = ""
+
+    # LLM configuration
+    llm_model: str = ""
+
+    # API keys (required for runtime, can be None for testing)
+    anthropic_api_key: str | None = None
+    tavily_api_key: str | None = None
+
+    # Search configuration
+    search_timeout_seconds: float = 0.0
+
+    # Logging configuration
+    log_level: str = ""
+
+    def __post_init__(self) -> None:
+        """Load environment variables after dataclass initialization."""
+        # Only set from env if not already provided
+        if not self.storage_dir:
+            self.storage_dir = os.getenv("FINFOLIO_STORAGE_DIR", "storage")
+        if not self.llm_model:
+            self.llm_model = os.getenv("FINFOLIO_LLM_MODEL", "claude-haiku-4-5-20251001")
+        if not self.anthropic_api_key:
+            self.anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not self.tavily_api_key:
+            self.tavily_api_key = os.getenv("TAVILY_API_KEY")
+        if self.search_timeout_seconds == 0.0:
+            self.search_timeout_seconds = float(os.getenv("FINFOLIO_SEARCH_TIMEOUT", "10"))
+        if not self.log_level:
+            self.log_level = os.getenv("FINFOLIO_LOG_LEVEL", "INFO")
+
+    def validate(self) -> None:
+        """Validate that required configuration is set.
+
+        Raises ValueError if critical configuration is missing.
+        """
+        if not self.anthropic_api_key:
+            raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
+        if not self.tavily_api_key:
+            raise ValueError("TAVILY_API_KEY environment variable is not set")
+
+    @property
+    def storage_path(self) -> Path:
+        """Get storage directory as Path object."""
+        return Path(self.storage_dir)

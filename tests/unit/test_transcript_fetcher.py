@@ -1,4 +1,5 @@
 """Unit tests for transcript fetcher module."""
+
 from unittest.mock import MagicMock
 
 import pytest
@@ -21,7 +22,9 @@ class TestTranscriptFetcher:
 
         assert result is True
         mock_youtube_client.fetch_captions.assert_called_once_with("vid123")
-        mock_storage.save_transcript.assert_called_once_with("vid123", "Caption text\nMore captions\n")
+        mock_storage.save_transcript.assert_called_once_with(
+            "vid123", "Caption text\nMore captions\n"
+        )
 
     def test_fetch_and_save_returns_false_when_no_captions(self, mock_youtube_client):
         """Test fetch_and_save returns False when captions unavailable."""

@@ -1,4 +1,4 @@
-.PHONY: help install dev test test-unit test-integration lint format type-check clean run fetch config
+.PHONY: help install dev test test-unit test-integration lint format type-check clean run fetch config factcheck summary
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -7,7 +7,7 @@
 PYTHON := python3
 UV := uv
 PACKAGE := finfolio
-SRC_DIR := finfolio
+SRC_DIR := src/finfolio
 TEST_DIR := tests
 PYTEST := $(UV) run pytest
 
@@ -17,8 +17,8 @@ GREEN := \033[0;32m
 YELLOW := \033[0;33m
 NC := \033[0m # No Color
 
-# Python path for local development
-PYTHONPATH := $(PWD):$(PYTHONPATH)
+# Python path for local development (prioritize src/ for Module 3 imports)
+PYTHONPATH := $(PWD)/src:$(PWD):$(PYTHONPATH)
 
 help: ## Show this help message
 	@echo "$(BLUE)FinFolio - YouTube Transcript Fetch Module$(NC)"
@@ -32,7 +32,7 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | grep -E '(test|lint|format|type)' | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(BLUE)Running:$(NC)"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | grep -E '(run|fetch|start)' | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | grep -E '(run|fetch|factcheck|summary|start)' | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(BLUE)Maintenance:$(NC)"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | grep -E '(clean)' | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}'
@@ -91,11 +91,11 @@ config-channels-reset: ## Reset channels.yaml from template (overwrites existing
 
 test: test-unit test-integration ## Run all tests
 
-test-unit: ## Run unit tests only
+test-unit: ## Run unit tests
 	@echo "$(BLUE)Running unit tests...$(NC)"
 	PYTHONPATH=$(PYTHONPATH) $(PYTEST) $(TEST_DIR)/unit/ -v --cov=$(SRC_DIR) --cov-report=term-missing
 
-test-integration: ## Run integration tests only
+test-integration: ## Run integration tests
 	@echo "$(BLUE)Running integration tests...$(NC)"
 	@PYTHONPATH=$(PYTHONPATH) $(PYTEST) $(TEST_DIR)/integration/ -v || true
 
@@ -179,6 +179,35 @@ summary: ## Run finfolio summarize to process transcripts into summaries + claim
 	@echo "$(GREEN)✓ Summarization complete!$(NC)"
 	@echo "$(BLUE)Results saved to:$(NC) storage/summaries/"
 	@echo ""
+
+factcheck: ## Run finfolio factcheck to verify claims from summaries
+	@if [ ! -f .env ]; then \
+		echo "$(YELLOW)⚠ .env file not found. Please run: make config$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)╔═══════════════════════════════════════════════════════════╗$(NC)"
+	@echo "$(BLUE)║  Starting Fact-Checking Pipeline                          ║$(NC)"
+	@echo "$(BLUE)╚═══════════════════════════════════════════════════════════╝$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Processing all unsummarized videos from storage/summaries/$(NC)"
+	@echo ""
+	@set -a; source .env; set +a; PYTHONPATH=$(PYTHONPATH) $(UV) run python -m finfolio.cli factcheck
+	@echo ""
+	@echo "$(GREEN)✓ Fact-checking complete!$(NC)"
+	@echo "$(BLUE)Results saved to:$(NC) storage/reports/videos/"
+	@echo ""
+
+factcheck-one: ## Run factcheck on a single video (VIDEO_ID=xxx)
+	@if [ -z "$(VIDEO_ID)" ]; then \
+		echo "$(YELLOW)Usage: make factcheck-one VIDEO_ID=abc123$(NC)"; \
+		exit 1; \
+	fi
+	@if [ ! -f .env ]; then \
+		echo "$(YELLOW)⚠ .env file not found. Please run: make config$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Fact-checking video: $(VIDEO_ID)$(NC)"
+	@set -a; source .env; set +a; PYTHONPATH=$(PYTHONPATH) $(UV) run python -m finfolio.cli factcheck --video-id $(VIDEO_ID)
 
 fetch-dry-run: ## Simulate fetch without downloading (for testing)
 	@echo "$(BLUE)Simulating fetch (dry-run)...$(NC)"

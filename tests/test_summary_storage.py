@@ -1,4 +1,5 @@
 """Integration tests for summary storage operations."""
+
 import json
 
 import pytest

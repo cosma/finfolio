@@ -1,4 +1,5 @@
 """Unit tests for transcript summarizer module."""
+
 import pytest
 
 from finfolio.summarizer import (

@@ -1,4 +1,5 @@
 """Unit tests for config module."""
+
 import os
 from unittest.mock import patch
 
@@ -55,7 +56,9 @@ channels:
     def test_load_config_malformed_yaml(self, tmp_path):
         """Test error when YAML syntax is invalid."""
         config_file = tmp_path / "channels.yaml"
-        config_file.write_text("channels:\n  - channel_id: \"UC7_ZLN2t-U-tZ7CgzQ0OoXw\n    display_name: Test\n")
+        config_file.write_text(
+            'channels:\n  - channel_id: "UC7_ZLN2t-U-tZ7CgzQ0OoXw\n    display_name: Test\n'
+        )
 
         with pytest.raises(ValueError, match="Invalid YAML"):
             config.load_config(str(config_file))
