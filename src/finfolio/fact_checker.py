@@ -151,9 +151,12 @@ class FactChecker:
                 if field not in data:
                     raise ValueError(f"Missing required field: {field}")
 
+            # Truncate note to 250 characters max
+            note = str(data["note"])[:250]
+
             return {
                 "verdict": data["verdict"],
-                "note": data["note"],
+                "note": note,
                 "source_url": data.get("source_url"),
                 "source_title": data.get("source_title"),
                 "source_date": data.get("source_date"),
@@ -230,12 +233,15 @@ class FactChecker:
         # Calculate total cost (sum of verdict costs)
         total_cost_usd = sum(v.reasoning_cost.get("cost_usd", 0.0) for v in verdicts)
 
+        # Use video_id to construct YouTube URL as fallback
+        video_url_fallback = f"https://youtube.com/watch?v={video_id}"
+
         report_data = {
             "video_id": video_id,
             "title": summary.get("title", "Unknown"),
             "channel_name": summary.get("channel_name", "Unknown"),
-            "channel_url": summary.get("channel_url", ""),
-            "source_url": summary.get("source_url", ""),
+            "channel_url": summary.get("channel_url", video_url_fallback),
+            "source_url": summary.get("source_url", video_url_fallback),
             "transcript_source": summary.get("transcript_source", "Unknown"),
             "fact_checked_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
             "fact_check_duration_seconds": 0.1,  # Placeholder; will be set by caller
