@@ -16,6 +16,7 @@ from langchain_core.prompts import PromptTemplate
 from pydantic import ValidationError
 
 from finfolio import storage
+from finfolio.models import ClaimModel
 from finfolio.summarizer_schema import Claim, SummaryMetadata, SummaryOutput
 
 logger = logging.getLogger(__name__)
@@ -133,6 +134,46 @@ def _get_api_key() -> str:
     if not api_key:
         raise LLMAPIError("ANTHROPIC_API_KEY environment variable not set")
     return api_key
+
+
+def _transform_claims_for_factcheck(claims: list[Claim], video_id: str) -> list[dict[str, Any]]:
+    """Transform summarizer claims to fact-checker ClaimModel format.
+
+    Maps field names and generates IDs for compatibility with Module 3 (Fact-Checking).
+
+    Args:
+        claims: Claims from summarizer in old format
+        video_id: Video ID for generating unique claim IDs
+
+    Returns:
+        List of claim dicts compatible with ClaimModel
+    """
+    transformed = []
+    for i, claim in enumerate(claims, 1):
+        # Generate unique claim ID based on video and index
+        claim_id = f"{video_id}_claim_{i:03d}"
+
+        # Transform field names and add missing fields
+        transformed_claim = {
+            "id": claim_id,
+            "text": claim.claim,  # Map 'claim' to 'text'
+            "quote": claim.quote,
+            "type": str(claim.type),
+            "confidence": claim.confidence_score or 0.5,  # Default to 0.5 if None
+            "timestamp": claim.source_timestamp or "00:00",  # Default to 00:00 if None
+            "is_opinion": False,  # Claims extracted as factual by default
+            "is_forecast": False,
+        }
+
+        # Validate the transformed claim against ClaimModel
+        try:
+            ClaimModel(**transformed_claim)
+            transformed.append(transformed_claim)
+        except ValidationError as e:
+            logger.warning(f"Skipping invalid claim {claim_id}: {str(e)}")
+            continue
+
+    return transformed
 
 
 def summarize_transcript(transcript_text: str, video_id: str) -> SummaryOutput:
@@ -362,6 +403,12 @@ def process_transcript_safe(video_id: str, transcript_text: str) -> SummaryOutpu
     summary_output = summarize_transcript(transcript_text, video_id)
 
     summary_dict = summary_output.model_dump(mode="json")
+
+    # Transform claims to fact-checker format for Module 3 compatibility
+    if "claims" in summary_dict:
+        transformed_claims = _transform_claims_for_factcheck(summary_output.claims, video_id)
+        summary_dict["claims"] = transformed_claims
+
     storage.save_summary(video_id, summary_dict)
 
     return summary_output
