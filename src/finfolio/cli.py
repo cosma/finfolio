@@ -1,7 +1,6 @@
 """CLI entry point for FinFolio: Fetch, Summarize, and Fact-Check."""
 
 import json
-import logging
 import os
 import random
 import sys
