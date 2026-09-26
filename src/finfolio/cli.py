@@ -430,10 +430,17 @@ def factcheck(
                     click.echo("✓ processed")
                     videos_processed += 1
 
-            except Exception as e:
-                logger.error(f"Error processing {vid_id}: {str(e)}", exc_info=True)
-                click.echo(f"✗ error: {str(e)[:50]}")
+            except (ValueError, FileNotFoundError, KeyError) as e:
+                # Local validation/data errors - continue with next video
+                logger.warning(f"Skipping {vid_id}: {str(e)}")
+                click.echo(f"⊘ skipped: {str(e)[:40]}")
                 errors_total += 1
+            except Exception as e:
+                # External service errors (API, LLM, search) - exit immediately
+                logger.error(f"External service error on {vid_id}: {str(e)}", exc_info=True)
+                click.echo(f"\n❌ External service error: {str(e)}")
+                click.echo("Aborting fact-checking pipeline.")
+                sys.exit(1)
 
         # Print summary
         duration = time.time() - start_time

@@ -180,6 +180,35 @@ summary: ## Run finfolio summarize to process transcripts into summaries + claim
 	@echo "$(BLUE)Results saved to:$(NC) storage/summaries/"
 	@echo ""
 
+factcheck: ## Run finfolio factcheck to verify claims from summaries
+	@if [ ! -f .env ]; then \
+		echo "$(YELLOW)⚠ .env file not found. Please run: make config$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)╔═══════════════════════════════════════════════════════════╗$(NC)"
+	@echo "$(BLUE)║  Starting Fact-Checking Pipeline                          ║$(NC)"
+	@echo "$(BLUE)╚═══════════════════════════════════════════════════════════╝$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Processing all unsummarized videos from storage/summaries/$(NC)"
+	@echo ""
+	@set -a; source .env; set +a; PYTHONPATH=$(PYTHONPATH) $(UV) run python -m finfolio.cli factcheck
+	@echo ""
+	@echo "$(GREEN)✓ Fact-checking complete!$(NC)"
+	@echo "$(BLUE)Results saved to:$(NC) storage/reports/videos/"
+	@echo ""
+
+factcheck-one: ## Run factcheck on a single video (VIDEO_ID=xxx)
+	@if [ -z "$(VIDEO_ID)" ]; then \
+		echo "$(YELLOW)Usage: make factcheck-one VIDEO_ID=abc123$(NC)"; \
+		exit 1; \
+	fi
+	@if [ ! -f .env ]; then \
+		echo "$(YELLOW)⚠ .env file not found. Please run: make config$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Fact-checking video: $(VIDEO_ID)$(NC)"
+	@set -a; source .env; set +a; PYTHONPATH=$(PYTHONPATH) $(UV) run python -m finfolio.cli factcheck --video-id $(VIDEO_ID)
+
 fetch-dry-run: ## Simulate fetch without downloading (for testing)
 	@echo "$(BLUE)Simulating fetch (dry-run)...$(NC)"
 	@echo "Note: Dry-run not yet implemented. Use 'make fetch' to test with real API."
