@@ -1,6 +1,5 @@
 """Unit tests for Pydantic models: ClaimModel, VerdictModel, ReportModel, CostModel."""
 
-
 import pytest
 from pydantic import ValidationError
 
