@@ -101,20 +101,36 @@ class Config:
     """
 
     # Storage location
-    storage_dir: str = os.getenv("FINFOLIO_STORAGE_DIR", "storage")
+    storage_dir: str = ""
 
     # LLM configuration
-    llm_model: str = os.getenv("FINFOLIO_LLM_MODEL", "claude-haiku-4-5-20251001")
+    llm_model: str = ""
 
     # API keys (required for runtime, can be None for testing)
-    anthropic_api_key: str | None = os.getenv("ANTHROPIC_API_KEY")
-    tavily_api_key: str | None = os.getenv("TAVILY_API_KEY")
+    anthropic_api_key: str | None = None
+    tavily_api_key: str | None = None
 
     # Search configuration
-    search_timeout_seconds: float = float(os.getenv("FINFOLIO_SEARCH_TIMEOUT", "10"))
+    search_timeout_seconds: float = 0.0
 
     # Logging configuration
-    log_level: str = os.getenv("FINFOLIO_LOG_LEVEL", "INFO")
+    log_level: str = ""
+
+    def __post_init__(self) -> None:
+        """Load environment variables after dataclass initialization."""
+        # Only set from env if not already provided
+        if not self.storage_dir:
+            self.storage_dir = os.getenv("FINFOLIO_STORAGE_DIR", "storage")
+        if not self.llm_model:
+            self.llm_model = os.getenv("FINFOLIO_LLM_MODEL", "claude-haiku-4-5-20251001")
+        if not self.anthropic_api_key:
+            self.anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not self.tavily_api_key:
+            self.tavily_api_key = os.getenv("TAVILY_API_KEY")
+        if self.search_timeout_seconds == 0.0:
+            self.search_timeout_seconds = float(os.getenv("FINFOLIO_SEARCH_TIMEOUT", "10"))
+        if not self.log_level:
+            self.log_level = os.getenv("FINFOLIO_LOG_LEVEL", "INFO")
 
     def validate(self) -> None:
         """Validate that required configuration is set.

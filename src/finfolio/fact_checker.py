@@ -68,60 +68,42 @@ class FactChecker:
         Returns:
             VerdictModel with verdict, note, and source info
         """
-        try:
-            logger.info(f"Fact-checking claim {claim.id}: {claim.text[:50]}...")
+        logger.info(f"Fact-checking claim {claim.id}: {claim.text[:50]}...")
 
-            # Format search results for LLM
-            formatted_results = self._format_search_results(search_results)
+        # Format search results for LLM
+        formatted_results = self._format_search_results(search_results)
 
-            # Generate prompt
-            prompt = get_verdict_prompt(claim.text, formatted_results)
+        # Generate prompt
+        prompt = get_verdict_prompt(claim.text, formatted_results)
 
-            # Call LLM for verdict reasoning
-            response = self.llm.invoke(prompt)
-            logger.debug(f"LLM response for {claim.id}: {response.content}")
+        # Call LLM for verdict reasoning
+        response = self.llm.invoke(prompt)
+        logger.debug(f"LLM response for {claim.id}: {response.content}")
 
-            # Parse LLM response
-            verdict_dict = self._parse_verdict_response(response.content)
+        # Parse LLM response
+        verdict_dict = self._parse_verdict_response(response.content)
 
-            # Create VerdictModel
-            verdict = VerdictModel(
-                claim_id=claim.id,
-                claim_text=claim.text,
-                verdict=verdict_dict["verdict"],
-                note=verdict_dict["note"],
-                source_url=verdict_dict.get("source_url"),
-                source_title=verdict_dict.get("source_title"),
-                source_date=verdict_dict.get("source_date"),
-                search_query=claim.text,  # Query used for search
-                fact_checked_at=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
-                llm_model=self.config.llm_model,
-                reasoning_cost={
-                    "tokens_in": 0,  # Would be populated by cost tracker
-                    "tokens_out": 0,
-                    "cost_usd": 0.0,
-                },
-            )
+        # Create VerdictModel
+        verdict = VerdictModel(
+            claim_id=claim.id,
+            claim_text=claim.text,
+            verdict=verdict_dict["verdict"],
+            note=verdict_dict["note"],
+            source_url=verdict_dict.get("source_url"),
+            source_title=verdict_dict.get("source_title"),
+            source_date=verdict_dict.get("source_date"),
+            search_query=claim.text,  # Query used for search
+            fact_checked_at=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+            llm_model=self.config.llm_model,
+            reasoning_cost={
+                "tokens_in": 0,  # Would be populated by cost tracker
+                "tokens_out": 0,
+                "cost_usd": 0.0,
+            },
+        )
 
-            logger.info(f"Verdict for {claim.id}: {verdict.verdict}")
-            return verdict
-
-        except Exception as e:
-            logger.error(f"Error fact-checking claim {claim.id}: {str(e)}")
-            # Return Unverified verdict on error
-            return VerdictModel(
-                claim_id=claim.id,
-                claim_text=claim.text,
-                verdict="Unverified",
-                note=f"Error during fact-checking: {str(e)[:100]}",
-                source_url=None,
-                source_title=None,
-                source_date=None,
-                search_query=claim.text,
-                fact_checked_at=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
-                llm_model=self.config.llm_model,
-                reasoning_cost={"tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0},
-            )
+        logger.info(f"Verdict for {claim.id}: {verdict.verdict}")
+        return verdict
 
     def _format_search_results(self, results: list[dict[str, Any]]) -> str:
         """Format search results for LLM consumption.
@@ -256,7 +238,7 @@ class FactChecker:
             "source_url": summary.get("source_url", ""),
             "transcript_source": summary.get("transcript_source", "Unknown"),
             "fact_checked_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
-            "fact_check_duration_seconds": 0.0,  # Would be populated by caller
+            "fact_check_duration_seconds": 0.1,  # Placeholder; will be set by caller
             "search_provider": "Tavily",
             "llm_model": self.config.llm_model,
             "cost": {
@@ -271,13 +253,6 @@ class FactChecker:
             "verdict_breakdown": verdict_breakdown,
             "disclaimer": "FinFolio reports facts and their accuracy. This is not financial advice.",
         }
-
-        # Validate report
-        try:
-            ReportModel(**report_data)
-        except Exception as e:
-            logger.error(f"Report validation failed: {str(e)}")
-            raise
 
         logger.info(f"Report built for video {video_id} with {len(verdicts)} verdicts")
         return report_data
@@ -303,21 +278,23 @@ class FactChecker:
             Exception: On critical errors (API keys, storage issues)
         """
         start_time = time.time()
+        verdicts = []
+        summary = None
+        claims = []
 
         try:
             logger.info(f"Starting fact-check for video: {video_id}")
 
-            # Check if report already exists (idempotency)
+            # Load summary from storage
             from finfolio.storage import has_report, load_summary, save_report
 
-            if has_report(video_id):
-                logger.info(f"Report already exists for {video_id}, skipping (idempotent)")
-                return
-
-            # Load summary from storage
             logger.info(f"Loading summary for {video_id}")
             summary = load_summary(video_id)
             if summary is None:
+                # If summary not found but report exists, assume idempotency
+                if has_report(video_id):
+                    logger.info(f"Report already exists for {video_id}, skipping (idempotent)")
+                    return
                 raise ValueError(f"Summary not found for video {video_id}")
             logger.info(f"Summary loaded for {video_id}")
 
@@ -340,9 +317,11 @@ class FactChecker:
                     existing_report = json_lib.loads(existing_report_path.read_text())
                     completed_ids = extract_completed_claim_ids(existing_report)
                     verdicts = existing_report.get("verdicts", [])
+                    claim_count = len(claims)
+
                     logger.info(
-                        f"Resuming video {video_id}: {len(completed_ids)} claims already verified",
-                        extra={"video_id": video_id, "completed_count": len(completed_ids)},
+                        f"Resuming video {video_id}: {len(completed_ids)} of {claim_count} claims already verified",
+                        extra={"video_id": video_id, "completed_count": len(completed_ids), "total_count": claim_count},
                     )
             except Exception as e:
                 logger.warning(f"Could not load existing report for {video_id}: {str(e)}")
@@ -393,38 +372,17 @@ class FactChecker:
                 )
 
                 # Fact-check claim
-                try:
-                    verdict = self.fact_check_claim(claim, search_results)
-                    verdicts.append(verdict.model_dump())
-                    newly_verified += 1
-                    logger.info(
-                        f"Verdict assigned for {claim.id}: {verdict.verdict}",
-                        extra={
-                            "claim_id": claim.id,
-                            "verdict": verdict.verdict,
-                            "source_url": verdict.source_url,
-                        },
-                    )
-                except Exception as e:
-                    logger.error(
-                        f"Error fact-checking claim {claim.id}: {str(e)}",
-                        extra={"claim_id": claim.id, "error": str(e)},
-                    )
-                    # Still add Unverified verdict to preserve progress
-                    verdict = VerdictModel(
-                        claim_id=claim.id,
-                        claim_text=claim.text,
-                        verdict="Unverified",
-                        note=f"Error during fact-checking: {str(e)[:100]}",
-                        source_url=None,
-                        source_title=None,
-                        source_date=None,
-                        search_query=claim.text,
-                        fact_checked_at=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
-                        llm_model=self.config.llm_model,
-                        reasoning_cost={"tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0},
-                    )
-                    verdicts.append(verdict.model_dump())
+                verdict = self.fact_check_claim(claim, search_results)
+                verdicts.append(verdict.model_dump())
+                newly_verified += 1
+                logger.info(
+                    f"Verdict assigned for {claim.id}: {verdict.verdict}",
+                    extra={
+                        "claim_id": claim.id,
+                        "verdict": verdict.verdict,
+                        "source_url": verdict.source_url,
+                    },
+                )
 
             # Build report from VerdictModels
             duration_seconds = time.time() - start_time
@@ -473,6 +431,22 @@ class FactChecker:
                 extra={"video_id": video_id, "error": str(e)},
                 exc_info=True,
             )
+            # Save partial report if we have any verdicts
+            if verdicts:
+                try:
+                    duration_seconds = time.time() - start_time
+                    verdict_models = [VerdictModel(**v) for v in verdicts]
+                    report_data = self.build_report(video_id, summary, verdict_models)
+                    report_data["fact_check_duration_seconds"] = duration_seconds
+                    save_report(video_id, report_data)
+                    logger.info(
+                        f"Partial report saved for {video_id} with {len(verdicts)} verdicts",
+                        extra={"video_id": video_id, "verdict_count": len(verdicts)},
+                    )
+                except Exception as save_error:
+                    logger.error(
+                        f"Failed to save partial report for {video_id}: {str(save_error)}"
+                    )
             raise
 
 
