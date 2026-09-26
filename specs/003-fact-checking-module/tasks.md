@@ -481,3 +481,21 @@ Before marking a task done:
 ---
 
 **Tasks Complete**: Ready for implementation. Each task is specific, has file paths, and can be tracked independently.
+
+---
+
+## Phase 6 (Convergence): Final Validation & Polish
+
+**Purpose**: Complete remaining validation, testing, and documentation to finalize feature for production.
+
+- [x] T060 Run full test suite: `pytest tests/ -v --cov=finfolio --cov-report=term-missing` (aim >85% coverage)
+- [x] T061 Validate against quickstart.md scenarios: test all 8 scenarios end-to-end
+- [x] T062 Type checking: `mypy src/ --strict` and fix any untyped code
+- [x] T063 Code quality: `ruff check src/ tests/` and `ruff format src/ tests/`
+- [x] T064 Final Constitution compliance audit: verify all 7 principles in code (already done, document)
+- [x] T065 Create deployment guide: setup instructions, env vars, cost estimates
+- [x] T066 Performance validation: test with 100-claim video, document latency & costs
+- [x] T067 Final documentation review: ensure all docstrings complete, README up-to-date
+- [x] T068 Mark Phase 6 tasks complete and prepare for merge to main
+
+**Checkpoint**: Implementation feature-complete, tested, documented, and ready for production.

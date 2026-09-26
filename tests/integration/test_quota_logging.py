@@ -1,4 +1,5 @@
 """Integration tests for quota logging."""
+
 import pytest
 
 

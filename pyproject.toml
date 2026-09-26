@@ -21,8 +21,10 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "langchain>=0.1.0",
     "langchain-anthropic>=0.1.0",
+    "langchain-community>=0.1.0",
     "pydantic>=2.0",
     "tiktoken>=0.5.0",
+    "tavily-python>=0.1.0",
 ]
 
 [project.optional-dependencies]
@@ -38,6 +40,7 @@ dev = [
 finfolio = "finfolio.cli:main"
 
 [tool.setuptools]
+package-dir = {"" = "src"}
 packages = ["finfolio"]
 
 [tool.pytest.ini_options]
@@ -47,6 +50,7 @@ addopts = "-v --cov=finfolio --cov-report=term-missing"
 markers = [
     "unit: unit tests",
     "integration: integration tests",
+    "contract: contract tests",
 ]
 
 [tool.mypy]

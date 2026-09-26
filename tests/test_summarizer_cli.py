@@ -1,4 +1,5 @@
 """Integration tests for summarizer CLI command."""
+
 from pathlib import Path
 from unittest.mock import patch
 

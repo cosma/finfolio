@@ -1,4 +1,5 @@
 """Unit tests for YouTube client module."""
+
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -30,10 +31,7 @@ class TestYouTubeClient:
             "items": [
                 {
                     "id": {"videoId": "vid123"},
-                    "snippet": {
-                        "title": "Test Video",
-                        "publishedAt": "2026-09-24T10:00:00Z"
-                    }
+                    "snippet": {"title": "Test Video", "publishedAt": "2026-09-24T10:00:00Z"},
                 }
             ]
         }
