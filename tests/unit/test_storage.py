@@ -234,7 +234,7 @@ class TestFactCheckingReportStorage:
         }
 
         with patch("finfolio.storage.REPORTS_DIR", reports_dir):
-            with pytest.raises(Exception):  # Should raise validation error
+            with pytest.raises(ValueError):  # Should raise validation error
                 storage.save_report(video_id, invalid_report_data)
 
     def test_save_report_uses_atomic_write(self, tmp_path):

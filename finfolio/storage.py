@@ -290,7 +290,7 @@ def load_summary(video_id: str) -> dict[str, Any] | None:
             video_id=video_id,
             error=f"Invalid JSON: {str(e)}"
         )
-        raise ValueError(f"Invalid JSON in summary file for {video_id}: {str(e)}")
+        raise ValueError(f"Invalid JSON in summary file for {video_id}: {str(e)}") from e
     except Exception as e:
         _log_operation(
             "summary_load_failed",

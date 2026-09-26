@@ -130,7 +130,7 @@ class TestResumability:
                             # First run: should handle the exception and save partial report
                             try:
                                 checker.run_fact_check_single_video(video_id)
-                            except:
+                            except Exception:
                                 pass  # Expected to fail
 
                             # Verify partial report was saved
