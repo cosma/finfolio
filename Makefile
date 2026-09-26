@@ -1,4 +1,4 @@
-.PHONY: help install dev test test-unit test-integration lint format type-check clean run fetch config
+.PHONY: help install dev test test-unit test-integration lint format type-check clean run fetch config factcheck summary
 
 # Default target - show help
 .DEFAULT_GOAL := help
