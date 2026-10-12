@@ -135,8 +135,9 @@ Each stage **validates against the previous** (spec checks constitution, plan ch
 **Optional skills that you can use for your specs (improve quality & confidence)**
                                                                                          
 - `/speckit-clarify` (optional) - Ask structured questions to de-risk ambiguous areas before planning (run before `/speckit-plan` if used)    
-- `/speckit-analyze` (optional) - Cross-artifact consistency & alignment report (after `/speckit-tasks`, before `/speckit-implement`)
 - `/speckit-checklist` (optional) - Generate quality checklists to validate requirements completeness, clarity, and consistency (after `/speckit-plan`)
+- `/speckit-analyze` (optional) - Cross-artifact consistency & alignment report (after `/speckit-tasks`, before `/speckit-implement`)
+
 
 ---
 

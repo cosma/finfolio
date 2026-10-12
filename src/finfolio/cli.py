@@ -249,8 +249,8 @@ def summarize(ctx: click.Context, batch_size: int) -> None:
             )
             sys.exit(1)
 
-        # Find all unsummarized transcripts
-        transcript_files = sorted(transcripts_dir.glob("*.txt"))
+        # Find all unsummarized transcripts (JSON format)
+        transcript_files = sorted(transcripts_dir.glob("*.json"))
         processed_count = 0
         error_count = 0
         skipped_count = 0
@@ -259,8 +259,13 @@ def summarize(ctx: click.Context, batch_size: int) -> None:
         for _i, transcript_file in enumerate(transcript_files[:batch_size]):
             video_id = transcript_file.stem
             try:
-                transcript_text = transcript_file.read_text(encoding="utf-8")
-                result = process_transcript_safe(video_id, transcript_text)
+                # Load transcript JSON with publication_timestamp
+                import json
+                transcript_data = json.loads(transcript_file.read_text(encoding="utf-8"))
+                transcript_text = transcript_data.get("content", "")
+                publication_timestamp = transcript_data.get("publication_timestamp")
+
+                result = process_transcript_safe(video_id, transcript_text, publication_timestamp)
 
                 if result is None:
                     # Already summarized, skipped

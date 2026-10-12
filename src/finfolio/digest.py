@@ -1,10 +1,10 @@
 """Monthly Digest Module (Module 4) - Aggregation logic for fact-checking reports."""
 
+import json
+import logging
 from datetime import datetime
 from pathlib import Path
-import json
-from typing import Optional, Dict, Any, List
-import logging
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -13,10 +13,10 @@ logger = logging.getLogger(__name__)
 
 class VerdictBreakdown(BaseModel):
     """Counts of each verdict type."""
-    True: int = Field(ge=0)
-    Partially_supported: int = Field(ge=0, alias="Partially supported")
-    Unverified: int = Field(ge=0)
-    False: int = Field(ge=0)
+    true: int = Field(ge=0, alias="True")
+    partially_supported: int = Field(ge=0, alias="Partially supported")
+    unverified: int = Field(ge=0, alias="Unverified")
+    false: int = Field(ge=0, alias="False")
 
     model_config = {"populate_by_name": True}
 
@@ -41,8 +41,8 @@ class Digest(BaseModel):
     generated_at: str
     report_count: int = Field(ge=0)
     verdict_breakdown: VerdictBreakdown
-    per_channel_breakdown: List[ChannelDigest] = Field(default_factory=list)
-    monetization_summary: List[MonetizationEntry] = Field(default_factory=list)
+    per_channel_breakdown: list[ChannelDigest] = Field(default_factory=list)
+    monetization_summary: list[MonetizationEntry] = Field(default_factory=list)
 
     @field_validator("month")
     @classmethod
@@ -70,17 +70,17 @@ class MonthlyDigest:
         self.year = year
         self.month = month
         self.month_str = f"{year:04d}-{month:02d}"
-        self.reports: List[Dict[str, Any]] = []
-        self.overall_verdicts: Dict[str, int] = {
+        self.reports: list[dict[str, Any]] = []
+        self.overall_verdicts: dict[str, int] = {
             "True": 0,
             "Partially supported": 0,
             "Unverified": 0,
             "False": 0,
         }
-        self.channel_stats: Dict[str, Dict[str, Any]] = {}
-        self.monetization_entries: Dict[tuple, str] = {}
+        self.channel_stats: dict[str, dict[str, Any]] = {}
+        self.monetization_entries: dict[tuple, str] = {}
 
-    def aggregate(self, report_paths: List[Path]) -> None:
+    def aggregate(self, report_paths: list[Path]) -> None:
         """Aggregate reports for this month.
 
         Args:
@@ -127,7 +127,7 @@ class MonthlyDigest:
                 key = (channel_name, disclosure)
                 self.monetization_entries[key] = disclosure
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize digest to dictionary matching schema."""
         per_channel_list = []
         for channel_name in sorted(self.channel_stats.keys()):
@@ -172,7 +172,7 @@ def validate_month(year: int, month: int) -> None:
         raise ValueError(f"Year must be 1900-2100, got {year}")
 
 
-def load_report(report_path: Path) -> Optional[Dict[str, Any]]:
+def load_report(report_path: Path) -> dict[str, Any] | None:
     """Safely load a report JSON file.
 
     Args:
@@ -184,6 +184,6 @@ def load_report(report_path: Path) -> Optional[Dict[str, Any]]:
     try:
         with open(report_path) as f:
             return json.load(f)
-    except (json.JSONDecodeError, IOError) as e:
+    except (OSError, json.JSONDecodeError) as e:
         logger.error(f"Failed to load report {report_path.name}: {e}")
         return None

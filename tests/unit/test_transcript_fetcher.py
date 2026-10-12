@@ -15,6 +15,7 @@ class TestTranscriptFetcher:
         """Test successful transcript fetch and save."""
         mock_storage = MagicMock()
         mock_youtube_client.fetch_captions.return_value = "Caption text\nMore captions\n"
+        mock_youtube_client.get_video_details.return_value = {"published_at": "2026-09-27T12:00:00Z"}
 
         fetcher = TranscriptFetcher(mock_youtube_client, mock_storage)
 
@@ -22,8 +23,9 @@ class TestTranscriptFetcher:
 
         assert result is True
         mock_youtube_client.fetch_captions.assert_called_once_with("vid123")
+        mock_youtube_client.get_video_details.assert_called_once_with("vid123")
         mock_storage.save_transcript.assert_called_once_with(
-            "vid123", "Caption text\nMore captions\n"
+            "vid123", "Caption text\nMore captions\n", "2026-09-27T12:00:00Z"
         )
 
     def test_fetch_and_save_returns_false_when_no_captions(self, mock_youtube_client):

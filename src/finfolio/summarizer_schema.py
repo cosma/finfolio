@@ -55,6 +55,9 @@ class SummaryMetadata(BaseModel):
     model: str = Field(..., description="LLM model used")
     temperature: float = Field(..., ge=0.0, le=2.0, description="Temperature parameter used")
     timestamp: datetime = Field(..., description="UTC timestamp when summary was generated")
+    publication_date: str | None = Field(
+        None, description="ISO 8601 publication timestamp from video metadata"
+    )
     cost_usd: float | None = Field(
         None, ge=0.0, description="Estimated cost of this LLM call in USD"
     )

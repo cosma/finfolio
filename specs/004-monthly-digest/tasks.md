@@ -308,4 +308,22 @@ With 2-3 developers:
 
 ---
 
-**Task List Version**: 1.0 | **Total Tasks**: 30 | **Status**: Ready for Implementation
+## Phase 7: Convergence
+
+**Purpose**: Fix critical issues preventing code from importing and running
+
+**Status**: FIXED - Syntax error resolved
+
+- [x] T031 [CRITICAL] Fix Python keyword field names in `src/finfolio/digest.py` (contradicts)
+  - Lines 16, 19: Use aliases for `True` and `False` fields in VerdictBreakdown
+  - Current: `True: int = Field(ge=0)` and `False: int = Field(ge=0)` (illegal Python syntax)
+  - Fix: Use proper Pydantic v2 aliases: `true_count: int = Field(ge=0, alias="True")` and `false_count: int = Field(ge=0, alias="False")`
+  - Update all references in ChannelDigest, Digest, and aggregation logic to use new field names
+  - Verify module imports without SyntaxError after fix
+  - Update CLI output JSON to use canonical field names from aliases
+
+**Expected outcome after convergence**: All 30 original tasks marked complete, T031 fixes syntax blocker, module is fully functional
+
+---
+
+**Task List Version**: 1.1 | **Total Tasks**: 31 (30 original + 1 convergence) | **Status**: Convergence identified

@@ -32,26 +32,49 @@ def ensure_storage_dir() -> None:
     _log_operation("storage_init", "success", message="Storage directories ready")
 
 
-def save_transcript(video_id: str, text: str) -> None:
-    """Save transcript to file using atomic .tmp pattern."""
+def save_transcript(video_id: str, text: str, publication_timestamp: str | None = None) -> None:
+    """Save transcript as JSON with publication_timestamp and content.
+
+    Args:
+        video_id: YouTube video ID
+        text: Transcript text content
+        publication_timestamp: ISO 8601 UTC publication timestamp (optional)
+    """
     ensure_storage_dir()
-    transcript_file = TRANSCRIPTS_DIR / f"{video_id}.txt"
-    tmp_file = TRANSCRIPTS_DIR / f"{video_id}.txt.tmp"
+    transcript_file = TRANSCRIPTS_DIR / f"{video_id}.json"
+    tmp_file = TRANSCRIPTS_DIR / f"{video_id}.json.tmp"
 
     try:
-        # Write to temporary file first
-        tmp_file.write_text(text, encoding="utf-8")
-        # Atomic rename
+        transcript_data = {
+            "publication_timestamp": publication_timestamp,
+            "content": text
+        }
+        tmp_file.write_text(json.dumps(transcript_data, indent=2), encoding="utf-8")
         tmp_file.replace(transcript_file)
-        _log_operation("transcript_saved", "success", video_id=video_id)
+        _log_operation("transcript_saved", "success", video_id=video_id,
+                      publication_timestamp=publication_timestamp)
     except Exception as e:
         _log_operation("transcript_save_failed", "failed", video_id=video_id, error=str(e))
         raise
 
 
 def has_transcript(video_id: str) -> bool:
-    """Check if transcript file exists."""
-    return (TRANSCRIPTS_DIR / f"{video_id}.txt").exists()
+    """Check if transcript file exists (supports both .json and legacy .txt)."""
+    json_file = TRANSCRIPTS_DIR / f"{video_id}.json"
+    txt_file = TRANSCRIPTS_DIR / f"{video_id}.txt"
+    return json_file.exists() or txt_file.exists()
+
+
+def load_transcript(video_id: str) -> dict[str, Any] | None:
+    """Load transcript from JSON file, return None if not found."""
+    json_file = TRANSCRIPTS_DIR / f"{video_id}.json"
+    if json_file.exists():
+        try:
+            return json.loads(json_file.read_text())
+        except Exception as e:
+            logger.error(f"Failed to load transcript {video_id}: {e}")
+            return None
+    return None
 
 
 def acquire_lock() -> bool:
@@ -351,7 +374,7 @@ def list_reports_for_month(year: int, month: int) -> list[Path]:
             pub_date = content.get("summary", {}).get("metadata", {}).get("publication_date", "")
             if pub_date.startswith(month_str):
                 reports.append(report_file)
-        except (json.JSONDecodeError, IOError):
+        except (OSError, json.JSONDecodeError):
             continue
 
     return sorted(reports)
