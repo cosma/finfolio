@@ -8,6 +8,7 @@ import time
 from datetime import UTC, datetime
 
 import click
+from dotenv import load_dotenv
 
 from finfolio import storage
 from finfolio.channel_monitor import ChannelMonitor
@@ -36,6 +37,7 @@ def _log_event(event: str, status: str, **kwargs) -> None:
 @click.pass_context
 def cli(ctx: click.Context, config: str) -> None:
     """FinFolio: Fact-checking system for finance content."""
+    load_dotenv(".env", override=True)
     ctx.ensure_object(dict)
     ctx.obj["config_path"] = config
 
@@ -247,8 +249,8 @@ def summarize(ctx: click.Context, batch_size: int) -> None:
             )
             sys.exit(1)
 
-        # Find all unsummarized transcripts
-        transcript_files = sorted(transcripts_dir.glob("*.txt"))
+        # Find all unsummarized transcripts (JSON format)
+        transcript_files = sorted(transcripts_dir.glob("*.json"))
         processed_count = 0
         error_count = 0
         skipped_count = 0
@@ -257,8 +259,13 @@ def summarize(ctx: click.Context, batch_size: int) -> None:
         for _i, transcript_file in enumerate(transcript_files[:batch_size]):
             video_id = transcript_file.stem
             try:
-                transcript_text = transcript_file.read_text(encoding="utf-8")
-                result = process_transcript_safe(video_id, transcript_text)
+                # Load transcript JSON with publication_timestamp
+                import json
+                transcript_data = json.loads(transcript_file.read_text(encoding="utf-8"))
+                transcript_text = transcript_data.get("content", "")
+                publication_timestamp = transcript_data.get("publication_timestamp")
+
+                result = process_transcript_safe(video_id, transcript_text, publication_timestamp)
 
                 if result is None:
                     # Already summarized, skipped
@@ -456,6 +463,61 @@ def factcheck(
     except Exception as e:
         logger.error(f"Fatal error: {str(e)}", exc_info=True)
         click.echo(f"ERROR: {str(e)}", err=True)
+        sys.exit(1)
+
+
+@cli.command()
+@click.option(
+    "--month",
+    type=str,
+    default=None,
+    help="Month in YYYY-MM format (default: current month)",
+)
+def report(month: str | None) -> None:
+    """Generate monthly digest of fact-checking reports."""
+    from finfolio.digest import MonthlyDigest, validate_month
+    from finfolio.storage import list_reports_for_month, save_monthly_digest
+
+    try:
+        # Determine month to generate digest for
+        if month is None:
+            now = datetime.now(UTC)
+            year = now.year
+            month_num = now.month
+        else:
+            if len(month) != 7 or month[4] != "-":
+                _log_event("digest_generation_failed", "failed", error="INVALID_MONTH_FORMAT")
+                sys.exit(1)
+            try:
+                year, month_num = int(month[:4]), int(month[5:7])
+                validate_month(year, month_num)
+            except ValueError as e:
+                _log_event("digest_generation_failed", "failed", error=str(e))
+                sys.exit(1)
+
+        # Get reports for the month
+        month_str = f"{year:04d}-{month_num:02d}"
+        report_paths = list_reports_for_month(year, month_num)
+
+        # Aggregate digest
+        digest = MonthlyDigest(year, month_num)
+        digest.aggregate(report_paths)
+        digest_dict = digest.to_dict()
+
+        # Save digest
+        digest_path = save_monthly_digest(year, month_num, digest_dict)
+
+        # Log success
+        _log_event(
+            "digest_generated",
+            "success",
+            month=month_str,
+            digest_path=str(digest_path),
+            report_count=digest_dict["report_count"],
+        )
+
+    except Exception as e:
+        _log_event("digest_generation_failed", "failed", error=str(e))
         sys.exit(1)
 
 

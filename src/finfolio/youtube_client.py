@@ -65,6 +65,31 @@ class YouTubeClient:
             }))
             raise
 
+    def get_video_details(self, video_id: str) -> dict[str, Any] | None:
+        """Fetch video details (title, publishedAt) from YouTube API."""
+        try:
+            request = self.youtube.videos().list(part="snippet", id=video_id)
+            response = request.execute()
+
+            if not response.get("items"):
+                return None
+
+            item = response["items"][0]
+            return {
+                "title": item["snippet"]["title"],
+                "published_at": item["snippet"]["publishedAt"],
+                "channel_id": item["snippet"]["channelId"],
+            }
+        except HttpError as e:
+            print(json.dumps({
+                "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+                "event": "video_details_fetch_failed",
+                "status": "failed",
+                "video_id": video_id,
+                "error": str(e)
+            }))
+            return None
+
     def fetch_captions(self, video_id: str) -> str | None:
         """Fetch transcript for a video using youtube-transcript-api."""
         try:

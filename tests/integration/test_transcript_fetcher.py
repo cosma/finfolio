@@ -13,6 +13,7 @@ class TestTranscriptFetcherIntegration:
         from finfolio.transcript_fetcher import TranscriptFetcher
 
         mock_youtube_client.fetch_captions.return_value = "Test caption data"
+        mock_youtube_client.get_video_details.return_value = {"published_at": "2026-09-27T12:00:00Z"}
         fetcher = TranscriptFetcher(mock_youtube_client, storage)
 
         result = fetcher.fetch_and_save("vid123")
@@ -24,6 +25,7 @@ class TestTranscriptFetcherIntegration:
         from finfolio.transcript_fetcher import TranscriptFetcher
 
         mock_youtube_client.fetch_captions.return_value = "Test caption"
+        mock_youtube_client.get_video_details.return_value = {"published_at": "2026-09-27T12:00:00Z"}
         fetcher = TranscriptFetcher(mock_youtube_client, storage)
 
         # First fetch

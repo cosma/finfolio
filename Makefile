@@ -1,4 +1,4 @@
-.PHONY: help install dev test test-unit test-integration lint format type-check clean run fetch config factcheck summary
+.PHONY: help install dev test test-unit test-integration lint format type-check clean run fetch config factcheck summary report
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -32,7 +32,7 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | grep -E '(test|lint|format|type)' | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(BLUE)Running:$(NC)"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | grep -E '(run|fetch|factcheck|summary|start)' | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | grep -E '(run|fetch|factcheck|summary|report|start)' | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(BLUE)Maintenance:$(NC)"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | grep -E '(clean)' | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}'
@@ -216,6 +216,23 @@ fetch-dry-run: ## Simulate fetch without downloading (for testing)
 fetch-help: ## Show finfolio fetch command help
 	@echo "$(BLUE)FinFolio fetch help:$(NC)"
 	$(UV) run finfolio fetch --help
+
+report: ## Generate monthly digest report (MONTH=YYYY-MM optional)
+	@echo "$(BLUE)╔═══════════════════════════════════════════════════════════╗$(NC)"
+	@echo "$(BLUE)║  Generating Monthly Digest Report                         ║$(NC)"
+	@echo "$(BLUE)╚═══════════════════════════════════════════════════════════╝$(NC)"
+	@echo ""
+	@if [ -z "$(MONTH)" ]; then \
+		echo "$(YELLOW)Generating digest for current month...$(NC)"; \
+		$(UV) run finfolio report; \
+	else \
+		echo "$(YELLOW)Generating digest for month: $(MONTH)$(NC)"; \
+		$(UV) run finfolio report --month $(MONTH); \
+	fi
+	@echo ""
+	@echo "$(GREEN)✓ Digest report complete!$(NC)"
+	@echo "$(BLUE)Results saved to:$(NC) storage/reports/monthly/"
+	@echo ""
 
 start: fetch ## Alias for 'fetch' - start the fetch process
 

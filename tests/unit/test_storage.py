@@ -23,7 +23,8 @@ class TestStorage:
                 assert transcripts_dir.exists()
 
     def test_save_transcript_writes_file(self, tmp_path):
-        """Test that save_transcript writes transcript to disk."""
+        """Test that save_transcript writes transcript to disk as JSON."""
+        import json
         storage_dir = tmp_path / "storage"
         transcripts_dir = storage_dir / "transcripts"
         transcripts_dir.mkdir(parents=True)
@@ -32,12 +33,15 @@ class TestStorage:
             with patch("finfolio.storage.TRANSCRIPTS_DIR", transcripts_dir):
                 video_id = "test_video_123"
                 text = "Test transcript content"
+                pub_timestamp = "2026-09-27T12:00:00Z"
 
-                storage.save_transcript(video_id, text)
+                storage.save_transcript(video_id, text, pub_timestamp)
 
-                transcript_file = transcripts_dir / f"{video_id}.txt"
+                transcript_file = transcripts_dir / f"{video_id}.json"
                 assert transcript_file.exists()
-                assert transcript_file.read_text() == text
+                data = json.loads(transcript_file.read_text())
+                assert data["content"] == text
+                assert data["publication_timestamp"] == pub_timestamp
 
     def test_has_transcript_returns_true_for_existing(self, tmp_path):
         """Test that has_transcript returns True for existing files."""

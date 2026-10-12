@@ -176,13 +176,14 @@ def _transform_claims_for_factcheck(claims: list[Claim], video_id: str) -> list[
     return transformed
 
 
-def summarize_transcript(transcript_text: str, video_id: str) -> SummaryOutput:
+def summarize_transcript(transcript_text: str, video_id: str, publication_timestamp: str | None = None) -> SummaryOutput:
     """
     Summarize a transcript using LangChain + Claude.
 
     Args:
         transcript_text: Full transcript text
         video_id: Video identifier for logging
+        publication_timestamp: ISO 8601 publication timestamp (optional)
 
     Returns:
         SummaryOutput with summary, claims, and metadata
@@ -276,6 +277,7 @@ TRANSCRIPT:
                 model=model,
                 temperature=0.3,
                 timestamp=timestamp,
+                publication_date=publication_timestamp,
                 cost_usd=cost_usd,
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
@@ -377,7 +379,7 @@ TRANSCRIPT:
     raise LLMAPIError("Summarization failed unexpectedly")
 
 
-def process_transcript_safe(video_id: str, transcript_text: str) -> SummaryOutput | None:
+def process_transcript_safe(video_id: str, transcript_text: str, publication_timestamp: str | None = None) -> SummaryOutput | None:
     """
     Process a transcript with idempotency check.
 
@@ -387,6 +389,7 @@ def process_transcript_safe(video_id: str, transcript_text: str) -> SummaryOutpu
     Args:
         video_id: Video identifier
         transcript_text: Full transcript text
+        publication_timestamp: ISO 8601 publication timestamp (optional)
 
     Returns:
         SummaryOutput if processed, None if skipped (already summarized)
@@ -400,7 +403,7 @@ def process_transcript_safe(video_id: str, transcript_text: str) -> SummaryOutpu
         )
         return None
 
-    summary_output = summarize_transcript(transcript_text, video_id)
+    summary_output = summarize_transcript(transcript_text, video_id, publication_timestamp)
 
     summary_dict = summary_output.model_dump(mode="json")
 

@@ -15,7 +15,8 @@ class TestLoadApiKey:
     def test_load_api_key_from_environment(self):
         """Test loading API key from YOUTUBE_API_KEY environment variable."""
         with patch.dict(os.environ, {"YOUTUBE_API_KEY": "test-key-123"}):
-            key = config.load_api_key()
+            with patch("finfolio.config.Path.exists", return_value=False):
+                key = config.load_api_key()
             assert key == "test-key-123"
 
     def test_load_api_key_raises_when_missing(self):

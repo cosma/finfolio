@@ -47,7 +47,7 @@ class TranscriptFetcher:
         return exists
 
     def fetch_and_save(self, video_id: str) -> bool:
-        """Fetch captions from YouTube and save transcript.
+        """Fetch captions from YouTube and save transcript with publication_timestamp.
 
         Args:
             video_id: YouTube video ID
@@ -67,9 +67,16 @@ class TranscriptFetcher:
                             reason="no_captions_available")
                 return False
 
-            # Save transcript to storage
-            self.storage.save_transcript(video_id, caption_text)
-            _log_fetcher("fetch_and_save", "success", video_id=video_id)
+            # Fetch video details to get publication timestamp
+            video_details = self.youtube_client.get_video_details(video_id)
+            if not video_details:
+                raise RuntimeError(f"Video details unavailable for {video_id}; not saving transcript")
+            publication_timestamp = video_details["published_at"]
+
+            # Save transcript to storage with publication_timestamp
+            self.storage.save_transcript(video_id, caption_text, publication_timestamp)
+            _log_fetcher("fetch_and_save", "success", video_id=video_id,
+                        publication_timestamp=publication_timestamp)
             return True
 
         except Exception as e:
