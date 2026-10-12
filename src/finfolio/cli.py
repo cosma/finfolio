@@ -8,6 +8,7 @@ import time
 from datetime import UTC, datetime
 
 import click
+from dotenv import load_dotenv
 
 from finfolio import storage
 from finfolio.channel_monitor import ChannelMonitor
@@ -36,6 +37,7 @@ def _log_event(event: str, status: str, **kwargs) -> None:
 @click.pass_context
 def cli(ctx: click.Context, config: str) -> None:
     """FinFolio: Fact-checking system for finance content."""
+    load_dotenv(".env", override=True)
     ctx.ensure_object(dict)
     ctx.obj["config_path"] = config
 

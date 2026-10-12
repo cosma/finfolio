@@ -28,8 +28,10 @@ class TestFoundationSetup:
         assert config.search_timeout_seconds == 15.0
         assert config.log_level == "DEBUG"
 
-    def test_config_has_defaults(self):
+    def test_config_has_defaults(self, monkeypatch):
         """Test that Config provides sensible defaults."""
+        for var in ("FINFOLIO_LLM_MODEL", "FINFOLIO_STORAGE_DIR", "FINFOLIO_SEARCH_TIMEOUT", "FINFOLIO_LOG_LEVEL"):
+            monkeypatch.delenv(var, raising=False)
         config = Config()
         assert config.llm_model == "claude-haiku-4-5-20251001"
         assert config.log_level == "INFO"

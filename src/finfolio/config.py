@@ -118,7 +118,6 @@ class Config:
 
     def __post_init__(self) -> None:
         """Load environment variables after dataclass initialization."""
-        load_dotenv(Path(".env"), override=True)
         # Only set from env if not already provided
         if not self.storage_dir:
             self.storage_dir = os.getenv("FINFOLIO_STORAGE_DIR", "storage")
