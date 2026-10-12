@@ -459,6 +459,61 @@ def factcheck(
         sys.exit(1)
 
 
+@cli.command()
+@click.option(
+    "--month",
+    type=str,
+    default=None,
+    help="Month in YYYY-MM format (default: current month)",
+)
+def report(month: str | None) -> None:
+    """Generate monthly digest of fact-checking reports."""
+    from finfolio.digest import MonthlyDigest, validate_month
+    from finfolio.storage import list_reports_for_month, save_monthly_digest
+
+    try:
+        # Determine month to generate digest for
+        if month is None:
+            now = datetime.now(UTC)
+            year = now.year
+            month_num = now.month
+        else:
+            if len(month) != 7 or month[4] != "-":
+                _log_event("digest_generation_failed", "failed", error="INVALID_MONTH_FORMAT")
+                sys.exit(1)
+            try:
+                year, month_num = int(month[:4]), int(month[5:7])
+                validate_month(year, month_num)
+            except ValueError as e:
+                _log_event("digest_generation_failed", "failed", error=str(e))
+                sys.exit(1)
+
+        # Get reports for the month
+        month_str = f"{year:04d}-{month_num:02d}"
+        report_paths = list_reports_for_month(year, month_num)
+
+        # Aggregate digest
+        digest = MonthlyDigest(year, month_num)
+        digest.aggregate(report_paths)
+        digest_dict = digest.to_dict()
+
+        # Save digest
+        digest_path = save_monthly_digest(year, month_num, digest_dict)
+
+        # Log success
+        _log_event(
+            "digest_generated",
+            "success",
+            month=month_str,
+            digest_path=str(digest_path),
+            report_count=digest_dict["report_count"],
+        )
+
+    except Exception as e:
+        _log_event("digest_generation_failed", "failed", error=str(e))
+        sys.exit(1)
+
+
 class _MainWrapper:
     """Hybrid main entry point supporting both Click and direct call interfaces.
 

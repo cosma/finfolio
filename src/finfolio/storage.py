@@ -319,3 +319,73 @@ def list_pending_videos() -> list[str]:
             pending.append(video_id)
 
     return sorted(pending)
+
+
+# Monthly Digest Module (Module 4) storage functions
+
+DIGESTS_DIR = STORAGE_DIR / "reports" / "monthly"
+
+
+def list_reports_for_month(year: int, month: int) -> list[Path]:
+    """List all reports for a given month based on publication_date.
+
+    Scans storage/reports/videos/ for JSON files and filters by
+    summary.metadata.publication_date month.
+
+    Args:
+        year: 4-digit year
+        month: Month number (1-12)
+
+    Returns:
+        List of report file paths matching the month
+    """
+    if not REPORTS_DIR.exists():
+        return []
+
+    reports = []
+    month_str = f"{year:04d}-{month:02d}"
+
+    for report_file in REPORTS_DIR.glob("*.json"):
+        try:
+            content = json.loads(report_file.read_text(encoding="utf-8"))
+            pub_date = content.get("summary", {}).get("metadata", {}).get("publication_date", "")
+            if pub_date.startswith(month_str):
+                reports.append(report_file)
+        except (json.JSONDecodeError, IOError):
+            continue
+
+    return sorted(reports)
+
+
+def save_monthly_digest(year: int, month: int, digest_data: dict[str, Any]) -> Path:
+    """Save monthly digest to file using atomic .tmp pattern.
+
+    Args:
+        year: 4-digit year
+        month: Month number (1-12)
+        digest_data: Digest dictionary to save
+
+    Returns:
+        Path to saved digest file
+
+    Raises:
+        Exception: If write fails
+    """
+    DIGESTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    digest_file = DIGESTS_DIR / f"{year:04d}-{month:02d}.json"
+    tmp_file = DIGESTS_DIR / f"{year:04d}-{month:02d}.json.tmp"
+
+    try:
+        tmp_file.write_text(
+            json.dumps(digest_data, indent=2, default=str),
+            encoding="utf-8"
+        )
+        tmp_file.replace(digest_file)
+        month_str = f"{year:04d}-{month:02d}"
+        _log_operation("digest_saved", "success", month=month_str, path=str(digest_file))
+        return digest_file
+    except Exception as e:
+        month_str = f"{year:04d}-{month:02d}"
+        _log_operation("digest_save_failed", "failed", month=month_str, error=str(e))
+        raise

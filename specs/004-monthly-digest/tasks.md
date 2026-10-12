@@ -22,9 +22,9 @@
 
 **Estimated Duration**: 30 minutes
 
-- [ ] T001 Create monthly digest module structure: `src/finfolio/digest.py`, `src/finfolio/storage.py` extension
-- [ ] T002 [P] Add MonthlyDigest, ChannelDigest, MonetizationEntry Pydantic models in `src/finfolio/digest.py`
-- [ ] T003 [P] Setup imports and dependencies: json, pathlib, datetime, pydantic, click in `src/finfolio/`
+- [x] T001 Create monthly digest module structure: `src/finfolio/digest.py`, `src/finfolio/storage.py` extension
+- [x] T002 [P] Add MonthlyDigest, ChannelDigest, MonetizationEntry Pydantic models in `src/finfolio/digest.py`
+- [x] T003 [P] Setup imports and dependencies: json, pathlib, datetime, pydantic, click in `src/finfolio/`
 
 ---
 
@@ -36,19 +36,19 @@
 
 **Estimated Duration**: 45 minutes
 
-- [ ] T004 Extend `src/finfolio/storage.py` with `list_reports_for_month(year, month)` function
+- [x] T004 Extend `src/finfolio/storage.py` with `list_reports_for_month(year, month)` function
   - Scan `storage/reports/videos/` for JSON files
   - Filter reports by publication_date month (from summary.metadata.publication_date)
   - Return list of Report file paths
-- [ ] T005 [P] Extend `src/finfolio/storage.py` with `save_monthly_digest(year, month, digest_data)` function
+- [x] T005 [P] Extend `src/finfolio/storage.py` with `save_monthly_digest(year, month, digest_data)` function
   - Create directory `storage/reports/monthly/` if missing
   - Write digest to `storage/reports/monthly/{year}-{month}.json` via atomic .tmp pattern
   - Return path to written file
-- [ ] T006 [P] Create report loading utility in `src/finfolio/digest.py`
+- [x] T006 [P] Create report loading utility in `src/finfolio/digest.py`
   - Function to safely load JSON report file with error handling
   - Extract required fields: summary.metadata.publication_date, channel_name, channel_url, verdict_breakdown, monetization_disclosure
   - Log errors on malformed files, return None instead of crashing
-- [ ] T007 [P] Create month validation utility in `src/finfolio/digest.py`
+- [x] T007 [P] Create month validation utility in `src/finfolio/digest.py`
   - Validate month format (YYYY-MM pattern)
   - Validate calendar month bounds (01-12)
   - Raise ValueError with clear message on invalid input
@@ -67,27 +67,27 @@
 
 ### Implementation for User Story 1
 
-- [ ] T008 [US1] Create MonthlyDigest class in `src/finfolio/digest.py`
+- [x] T008 [US1] Create MonthlyDigest class in `src/finfolio/digest.py`
   - Constructor accepts month (YYYY-MM string)
   - Methods: `aggregate()`, `get_overall_verdict_counts()`, `get_per_channel_breakdown()`, `to_dict()`
-- [ ] T009 [P] [US1] Implement verdict aggregation logic in `src/finfolio/digest.py`
+- [x] T009 [P] [US1] Implement verdict aggregation logic in `src/finfolio/digest.py`
   - Sum verdict_breakdown counts across all reports in month (True, Partially supported, Unverified, False)
   - Handle empty months (all counts = 0)
   - Store in overall verdict_breakdown
-- [ ] T010 [P] [US1] Implement per-channel grouping in `src/finfolio/digest.py`
+- [x] T010 [P] [US1] Implement per-channel grouping in `src/finfolio/digest.py`
   - Group reports by channel_name
   - Calculate verdict_breakdown for each channel
   - Sort by channel_name for determinism
   - Create ChannelDigest objects with channel_name, channel_url, video_count, verdict_breakdown
-- [ ] T011 [US1] Implement JSON serialization in `src/finfolio/digest.py`
+- [x] T011 [US1] Implement JSON serialization in `src/finfolio/digest.py`
   - Serialize MonthlyDigest to JSON with fields: month, generated_at (ISO 8601 UTC), report_count, verdict_breakdown, per_channel_breakdown
   - Ensure output matches schema from contracts/digest-schema.md
   - All numbers as integers (not strings)
-- [ ] T012 [US1] Implement idempotency in `src/finfolio/digest.py`
+- [x] T012 [US1] Implement idempotency in `src/finfolio/digest.py`
   - Generate digest to produce consistent output on multiple runs
   - Use atomic file write via save_monthly_digest() from T005
   - Verify deterministic ordering (channels sorted by name)
-- [ ] T013 [US1] Add input validation and error handling
+- [x] T013 [US1] Add input validation and error handling
   - Validate month parameter in constructor
   - Handle missing storage/reports/videos/ directory gracefully
   - Handle empty month (report_count = 0)
@@ -107,17 +107,17 @@
 
 ### Implementation for User Story 2
 
-- [ ] T014 [US2] Extend MonthlyDigest aggregation to collect monetization disclosures
+- [x] T014 [US2] Extend MonthlyDigest aggregation to collect monetization disclosures
   - For each report in month: extract monetization_disclosure field (if non-null)
   - Collect (channel_name, disclosure_text) pairs
-- [ ] T015 [P] [US2] Implement deduplication logic in `src/finfolio/digest.py`
+- [x] T015 [P] [US2] Implement deduplication logic in `src/finfolio/digest.py`
   - Deduplicate by (channel_name, disclosure_text) tuple
   - Remove duplicate disclosure_text for same channel
   - Create MonetizationEntry objects with channel_name, disclosure
-- [ ] T016 [US2] Implement monetization ordering in `src/finfolio/digest.py`
+- [x] T016 [US2] Implement monetization ordering in `src/finfolio/digest.py`
   - Sort monetization_summary by channel_name, then by disclosure_text for determinism
   - Add to MonthlyDigest.to_dict() output as monetization_summary array
-- [ ] T017 [US2] Handle null/missing monetization_disclosure fields
+- [x] T017 [US2] Handle null/missing monetization_disclosure fields
   - Skip null values (no disclosure)
   - Skip videos with no monetization_disclosure field
   - Generate digest with empty monetization_summary array if no disclosures found
@@ -137,27 +137,27 @@
 
 ### Implementation for User Story 3
 
-- [ ] T018 [US3] Create CLI command function in `src/finfolio/cli.py`
+- [x] T018 [US3] Create CLI command function in `src/finfolio/cli.py`
   - Add Click command: `@cli.command(name='report')`
   - Accept `--month` parameter (optional, default to current month if omitted)
   - Call MonthlyDigest.aggregate() and save result
-- [ ] T019 [P] [US3] Implement month parameter parsing in CLI
+- [x] T019 [P] [US3] Implement month parameter parsing in CLI
   - Accept YYYY-MM format
   - Parse into year and month integers
   - Validate format and bounds (01-12 for month)
   - Emit error message for invalid input (e.g., "2026-13", "09-2026")
   - Do NOT write digest file on validation error
-- [ ] T020 [US3] Implement JSON logging output in `src/finfolio/cli.py`
+- [x] T020 [US3] Implement JSON logging output in `src/finfolio/cli.py`
   - Log to stdout: JSON object with timestamp (ISO 8601 UTC), event, status, month, digest_path, report_count, error (if applicable)
   - On success: `event='digest_generated'`, `status='success'`, include digest_path and report_count
   - On failure: `event='digest_generation_failed'`, `status='failed'`, include error message
   - Follow same logging pattern as other FinFolio modules (one JSON object per line)
-- [ ] T021 [US3] Handle edge cases in CLI
+- [x] T021 [US3] Handle edge cases in CLI
   - No reports for requested month: create digest with report_count=0, all verdicts=0, empty arrays
   - Malformed report files: log error, continue processing, generate partial digest
   - Permission errors on directory creation: emit error message, do not proceed
   - Concurrent execution: rely on atomic .tmp pattern for safety
-- [ ] T022 [US3] Test default month behavior
+- [x] T022 [US3] Test default month behavior
   - If `--month` not provided: use current calendar month (derived from date.today())
   - Generate digest for current month
   - Update spec.md and test documentation if needed
@@ -172,7 +172,7 @@
 
 **Estimated Duration**: 1.5 hours
 
-- [ ] T023 [P] Run quickstart.md validation scenarios
+- [x] T023 [P] Run quickstart.md validation scenarios
   - Scenario 1: Generate digest for current month, verify file and structure
   - Scenario 2: Default to current month (no --month flag)
   - Scenario 3: Empty month handling (no reports)
@@ -180,35 +180,35 @@
   - Scenario 5: Per-channel breakdown accuracy
   - Scenario 6: Monetization summary correctness
   - Scenario 7: Invalid month format error handling
-- [ ] T024 [P] Verify schema compliance
+- [x] T024 [P] Verify schema compliance
   - Load generated digest JSON from storage/reports/monthly/
   - Validate against Pydantic models (Digest, ChannelDigest, MonetizationEntry, VerdictBreakdown)
   - Confirm all required fields present
   - Confirm field types match (integers, strings, arrays, objects)
-- [ ] T025 [P] Test edge cases from spec.md
+- [x] T025 [P] Test edge cases from spec.md
   - Empty month: report_count=0, all verdict counts=0, empty per_channel_breakdown, empty monetization_summary
   - Malformed report file: skip with error log, continue processing
   - Very large month: create test data with 100+ reports, verify < 2 seconds completion time
   - Concurrent execution: run two commands simultaneously, verify no corruption
-- [ ] T026 Verify performance target
+- [x] T026 Verify performance target
   - Measure digest generation time for month with 50 videos
   - Confirm < 2 seconds (from Clarification Q4, SC-004)
   - Document any performance bottlenecks found
-- [ ] T027 [P] Code quality checks
+- [x] T027 [P] Code quality checks
   - Run `ruff check src/finfolio/digest.py src/finfolio/cli.py`
   - Fix any linting issues
   - Run `mypy src/finfolio/` for type checking
   - Ensure all imports are used, no unused variables
-- [ ] T028 [P] Add inline documentation
+- [x] T028 [P] Add inline documentation
   - Docstrings for MonthlyDigest class and all public methods
   - Comments for complex aggregation logic (verdict summing, deduplication)
   - Type hints on all function parameters and returns
-- [ ] T029 Verify Constitution compliance
+- [x] T029 Verify Constitution compliance
   - Confirm no financial advice in output (digest = statistics only)
   - Confirm monetization disclosure transparency (Principle V)
   - Confirm no external APIs or LLM calls needed (pure aggregation)
   - Confirm error handling and logging for observability (Principle IV)
-- [ ] T030 Final integration test
+- [x] T030 Final integration test
   - Run full end-to-end: `finfolio report --month 2026-09` with real report data
   - Verify digest file created with expected structure
   - Verify CLI output matches spec (JSON logging format)

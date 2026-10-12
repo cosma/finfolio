@@ -44,7 +44,7 @@ def load_api_key() -> str:
     # Try to load from .env file first
     env_file = Path(".env")
     if env_file.exists():
-        load_dotenv(env_file)
+        load_dotenv(env_file, override=True)
         _log_config("load_api_key", "success", source=".env file")
 
     # Check environment variable (either from .env or system)
@@ -118,6 +118,7 @@ class Config:
 
     def __post_init__(self) -> None:
         """Load environment variables after dataclass initialization."""
+        load_dotenv(Path(".env"), override=True)
         # Only set from env if not already provided
         if not self.storage_dir:
             self.storage_dir = os.getenv("FINFOLIO_STORAGE_DIR", "storage")
