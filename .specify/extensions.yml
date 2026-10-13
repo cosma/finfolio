@@ -3,5 +3,5 @@ hooks:
     - command: speckit.git.branch
       description: "Create and switch to a git branch matching the new feature's directory slug (e.g. 002-user-auth)"
       prompt: "Create and check out a new git branch for this feature, using the same NNN-<short-name> slug that will become the spec directory name. If GIT_BRANCH_NAME was explicitly provided to /speckit-specify, use that exact value instead of deriving one."
-      optional: true
+      optional: false
       enabled: true
