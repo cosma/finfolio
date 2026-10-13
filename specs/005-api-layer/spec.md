@@ -15,6 +15,10 @@
 - Q: Storage only has monthly digests today. Which should the API serve for digest endpoints in this module? → A: Monthly now (expose the existing monthly digests; weekly digests can be added later without changing the API shape)
 - Q: Reports store the verdict as "Partially supported/overstated" but digests store it as "Partially supported". Which exact verdict names should the verdict filter accept? → A: Store everywhere as "Partially supported" (one canonical name across reports and digests)
 - Q: How should the index pick up new or changed stored files while the API is running? → A: Startup + manual refresh (rebuild at startup; the owner triggers an explicit refresh; no background watching)
+- Q: When a stored report contains a verdict name outside the four canonical ones (for example a leftover "Partially supported/overstated" from older data), what should the API do with that report? → A: Change all existing stored files that use the old name to "Partially supported" and make sure the old name never appears again
+- Q: While an index refresh is running, should list requests keep returning the previous index until the new one is fully built, or wait for the refresh to finish? → A: Keep serving the previous index, then swap in the new one all at once
+- Q: How should the start and end date filters be written in a request, and how should they match a report's fact-check date? → A: Calendar dates (YYYY-MM-DD) compared against the calendar date of the fact-check; a report dated on the start or end day is included
+- Q: What should the per-video list return when a requested page is past the last page of results? → A: An empty list for that page, plus the total count (not an error)
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -78,6 +82,7 @@ As the owner, I want to fetch one per-video report by its video ID, so I can rea
 - The index is missing or stale at startup: it is rebuilt from the files before the API serves requests.
 - Storage is empty on first run: the API starts and returns empty lists.
 - A report has zero claims: it appears in unfiltered lists and is excluded from any verdict filter.
+- A stored file still uses a non-canonical verdict name (for example the legacy "Partially supported/overstated") after the migration: it is treated as malformed (skipped from lists, logged, reported as skipped), so verdict filters stay exact.
 - Two date filter bounds are given but one is missing: the open bound is treated as unbounded.
 
 ## Requirements *(mandatory)*
@@ -86,19 +91,20 @@ As the owner, I want to fetch one per-video report by its video ID, so I can rea
 
 - **FR-001**: The API MUST list all stored monthly digests, newest month first, with each digest's month identifier, report count, and verdict breakdown.
 - **FR-002**: The API MUST return a single monthly digest by its month identifier (YYYY-MM), including its per-channel breakdown and monetization disclosures.
-- **FR-003**: The API MUST list per-video reports, newest fact-check first, with pagination.
+- **FR-003**: The API MUST list per-video reports, newest fact-check first, with pagination. A page past the last page MUST return an empty list together with the total count, not an error.
 - **FR-004**: The per-video list MUST support filtering by channel (exact channel name or channel URL).
-- **FR-005**: The per-video list MUST support filtering by date range on the fact-check date, with inclusive start and end bounds, either bound optional.
+- **FR-005**: The per-video list MUST support filtering by date range on the fact-check date. Bounds are calendar dates written as YYYY-MM-DD, compared against the calendar date of the fact-check; start and end are both inclusive; either bound is optional.
 - **FR-006**: The per-video list MUST support filtering by verdict, returning reports that contain at least one claim with that verdict. Accepted verdict names are the canonical set: True, Partially supported, Unverified, False. Any other value is rejected per FR-013.
 - **FR-007**: Multiple filters MUST combine with AND logic.
 - **FR-008**: The API MUST return a single per-video report by video ID, with the full report content.
 - **FR-009**: Filtering and listing MUST NOT scan every stored file per request; they MUST be served from an index built from the stored files.
-- **FR-010**: The index MUST be built from the stored files when the API starts. The owner MUST be able to trigger an explicit index refresh while the API is running, without restarting. The API MUST NOT watch the storage directory in the background.
+- **FR-010**: The index MUST be built from the stored files when the API starts. The owner MUST be able to trigger an explicit index refresh while the API is running, without restarting. The API MUST NOT watch the storage directory in the background. While a refresh runs, list requests MUST keep using the previous index; the new index replaces it in a single switch once fully built.
 - **FR-011**: The API MUST read stored data only through the project's existing storage access layer; it MUST NOT write, modify, or delete stored files.
 - **FR-012**: The API MUST NOT require authentication for v1.
 - **FR-013**: Invalid filter values, malformed identifiers, and unknown items MUST produce clear client-facing errors with the correct status meaning (invalid input vs. not found), never a server error.
 - **FR-014**: Unreadable or malformed stored files MUST NOT stop the API from serving other items; they MUST be logged and reported as skipped.
 - **FR-015**: Every report and digest response MUST include the disclaimer and transcript source present in the stored data, unchanged.
+- **FR-016**: Stored data MUST use only the canonical verdict names (True, Partially supported, Unverified, False). The legacy name "Partially supported/overstated" MUST NOT be written by the pipeline and MUST NOT remain in storage after the one-time migration in the Assumptions.
 
 ### Key Entities
 
@@ -124,10 +130,11 @@ As the owner, I want to fetch one per-video report by its video ID, so I can rea
 - Single-user, local or personal use; the API listens only on the local machine by default. No accounts, roles, or access control in v1.
 - Stored data is produced by the existing pipeline (transcript fetch, summarization, fact-checking, monthly digest). This feature only reads it.
 - Digest endpoints serve the existing monthly digests (`storage/reports/monthly/YYYY-MM.json`). Weekly digests are not produced by this module; they can be added later without changing the API shape.
-- The canonical verdict name for the partially-true outcome is "Partially supported" in reports and digests alike. Existing stored data and pipeline output that use "Partially supported/overstated" must be changed to this name by a pipeline/data change before this module ships; this module does not rename stored data (FR-011).
+- The canonical verdict name for the partially-true outcome is "Partially supported" in reports and digests alike. Before this module ships, a one-time data migration changes every existing stored file that uses "Partially supported/overstated" to "Partially supported". This migration is not part of the API: the API never renames stored data (FR-011).
 - The date filter for per-video reports uses the fact-check date recorded on each report, since it is always present.
 - The channel filter matches the channel name or channel URL exactly; fuzzy or partial matching is out of scope.
 - Pagination uses a fixed default page size (50) with a maximum (200).
 - The index is held in process memory or in a local, gitignored cache file rebuilt from storage at startup. Either satisfies FR-009; the choice belongs to planning.
 - Monetization disclosures and disclaimers are returned as stored; the API does not reword or interpret them (Constitution principles II and V).
+- Stored monthly digests currently have no disclaimer. Before this module ships, the digest pipeline writes the standard disclaimer into each digest, and existing digest files get the same one-time data fix as the verdict migration. The API adds nothing at read time.
 - Out of scope: the web frontend (module 6), authentication, write endpoints, triggering pipeline runs from the API, and any financial recommendation features.
