@@ -20,7 +20,8 @@ Respond in JSON format with exactly these fields:
     "note": "1-2 sentence explanation of the verdict (max 250 chars)",
     "source_url": "URL of the primary source used (null if Unverified)",
     "source_title": "Title of the source (null if Unverified)",
-    "source_date": "Publication date in ISO 8601 format (null if Unverified)"
+    "source_date": "Publication date in ISO 8601 format (null if Unverified)",
+    "confidence": "Number from 0.0 to 1.0: how certain the verdict is given these results (1.0 = a source states it directly, 0.0 = no basis)"
 }}
 
 IMPORTANT:
@@ -29,6 +30,7 @@ IMPORTANT:
 - Never add opinion or speculation
 - If there's insufficient information, return "Unverified"
 - Always include a brief, factual note explaining the verdict
+- Use confidence 0.8 or higher only when a source states the verdict directly
 - Temperature is 0 for consistency; verdicts must be deterministic"""
 
 

@@ -112,6 +112,8 @@ class Config:
 
     # Search configuration
     search_timeout_seconds: float = 0.0
+    # Minimum confidence for accepting a free-source (DuckDuckGo) verdict. Negative = read from env.
+    search_min_confidence: float = -1.0
 
     # Logging configuration
     log_level: str = ""
@@ -127,6 +129,14 @@ class Config:
             self.anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
         if not self.tavily_api_key:
             self.tavily_api_key = os.getenv("TAVILY_API_KEY")
+        if self.search_min_confidence < 0:
+            raw = os.getenv("FINFOLIO_SEARCH_MIN_CONFIDENCE", "0.8")
+            try:
+                self.search_min_confidence = float(raw)
+            except ValueError as e:
+                raise ValueError(
+                    f"FINFOLIO_SEARCH_MIN_CONFIDENCE must be a number between 0 and 1, got {raw!r}"
+                ) from e
         if self.search_timeout_seconds == 0.0:
             self.search_timeout_seconds = float(os.getenv("FINFOLIO_SEARCH_TIMEOUT", "10"))
         if not self.log_level:
@@ -141,6 +151,10 @@ class Config:
             raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
         if not self.tavily_api_key:
             raise ValueError("TAVILY_API_KEY environment variable is not set")
+        if not 0.0 <= self.search_min_confidence <= 1.0:
+            raise ValueError(
+                f"FINFOLIO_SEARCH_MIN_CONFIDENCE must be between 0 and 1, got {self.search_min_confidence}"
+            )
 
     @property
     def storage_path(self) -> Path:

@@ -114,3 +114,17 @@ Technology stocks led the gains.
 00:00:10,000 --> 00:00:15,000
 Investors remain cautious about inflation concerns.
 """
+
+
+@pytest.fixture(autouse=True)
+def no_live_search_or_dotenv(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep every test off the network and off paid credits.
+
+    - Config never loads .env, so a real Tavily or Anthropic key cannot leak into a test.
+    - DuckDuckGo returns no results, so the fact-checker never reaches the live web.
+    Tests that need search results mock the search client explicitly.
+    """
+    from finfolio.search.ddg_client import DuckDuckGoSearchClient
+
+    monkeypatch.setattr("finfolio.config.load_dotenv", lambda *args, **kwargs: False)
+    monkeypatch.setattr(DuckDuckGoSearchClient, "search", lambda self, query: [])

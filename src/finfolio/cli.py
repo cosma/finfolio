@@ -15,7 +15,7 @@ from finfolio.channel_monitor import ChannelMonitor
 from finfolio.config import Config, load_api_key, load_config
 from finfolio.fact_checker import FactChecker
 from finfolio.logging_utils import configure_logging
-from finfolio.search.tavily_client import SearchQuotaError
+from finfolio.search.errors import SearchError, SearchQuotaError
 from finfolio.storage import list_pending_videos, load_summary
 from finfolio.transcript_fetcher import TranscriptFetcher
 from finfolio.youtube_client import YouTubeClient
@@ -262,6 +262,7 @@ def summarize(ctx: click.Context, batch_size: int) -> None:
             try:
                 # Load transcript JSON with publication_timestamp
                 import json
+
                 transcript_data = json.loads(transcript_file.read_text(encoding="utf-8"))
                 transcript_text = transcript_data.get("content", "")
                 publication_timestamp = transcript_data.get("publication_timestamp")
@@ -382,9 +383,7 @@ def summarize(ctx: click.Context, batch_size: int) -> None:
     help="Process a single video by ID (overrides --limit)",
 )
 @click.option("--verbose", is_flag=True, help="Enable DEBUG logging")
-def factcheck(
-    limit: int | None, video_id: str | None, verbose: bool
-) -> None:
+def factcheck(limit: int | None, video_id: str | None, verbose: bool) -> None:
     """Fact-check extracted claims from video summaries."""
     log_level = "DEBUG" if verbose else "INFO"
     logger = configure_logging(log_level)
@@ -438,11 +437,15 @@ def factcheck(
                     click.echo("✓ processed")
                     videos_processed += 1
 
-            except SearchQuotaError as e:
-                # Searches are refused until credits are topped up. Partial verdicts are saved by fact_checker.
-                logger.error(f"Tavily quota exhausted at {vid_id}: {str(e)}")
-                click.echo(f"\n❌ Tavily search credits are used up at video {vid_id}.")
-                click.echo("Stopped. Partial verdicts are saved; re-run after topping up credits.")
+            except SearchError as e:
+                # A search failed, so the run stops. Partial verdicts are saved by fact_checker.
+                # Claims that were not verified are re-checked on the next run.
+                logger.error(f"Search failed at {vid_id}: {str(e)}")
+                if isinstance(e, SearchQuotaError):
+                    click.echo(f"\n❌ Tavily search credits are used up at video {vid_id}.")
+                else:
+                    click.echo(f"\n❌ Search failed at video {vid_id}: {e}")
+                click.echo("Stopped. Partial verdicts are saved; re-run after fixing the cause.")
                 sys.exit(2)
             except Exception as e:
                 # Any error during fact-checking - exit immediately
@@ -457,6 +460,8 @@ def factcheck(
         click.echo("Summary:")
         click.echo(f"  Videos processed: {videos_processed}")
         click.echo(f"  Claims verified: {claims_verified}")
+        click.echo(f"  Free searches (DuckDuckGo): {checker.search_stats['duckduckgo']}")
+        click.echo(f"  Paid searches (Tavily): {checker.search_stats['tavily']}")
         click.echo(f"  Errors: {errors_total}")
         click.echo(f"  Duration: {duration:.1f}s")
         click.echo("=" * 60)
