@@ -84,6 +84,7 @@ As the owner, I want to fetch one per-video report by its video ID, so I can rea
 - A report has zero claims: it appears in unfiltered lists and is excluded from any verdict filter.
 - A stored file still uses a non-canonical verdict name (for example the legacy "Partially supported/overstated") after the migration: it is treated as malformed (skipped from lists, logged, reported as skipped), so verdict filters stay exact.
 - Two date filter bounds are given but one is missing: the open bound is treated as unbounded.
+- A single-item request for an unreadable stored file returns HTTP 500 with a message naming the file. This is the only server-error response in this module.
 
 ## Requirements *(mandatory)*
 
@@ -93,15 +94,15 @@ As the owner, I want to fetch one per-video report by its video ID, so I can rea
 - **FR-002**: The API MUST return a single monthly digest by its month identifier (YYYY-MM), including its per-channel breakdown and monetization disclosures.
 - **FR-003**: The API MUST list per-video reports, newest fact-check first, with pagination. A page past the last page MUST return an empty list together with the total count, not an error.
 - **FR-004**: The per-video list MUST support filtering by channel (exact channel name or channel URL).
-- **FR-005**: The per-video list MUST support filtering by date range on the fact-check date. Bounds are calendar dates written as YYYY-MM-DD, compared against the calendar date of the fact-check; start and end are both inclusive; either bound is optional.
+- **FR-005**: The per-video list MUST support filtering by date range on the fact-check date. Bounds are calendar dates written as YYYY-MM-DD, compared against the UTC calendar date of the fact-check (the `fact_checked_at` timestamp stored on each report); start and end are both inclusive; either bound is optional.
 - **FR-006**: The per-video list MUST support filtering by verdict, returning reports that contain at least one claim with that verdict. Accepted verdict names are the canonical set: True, Partially supported, Unverified, False. Any other value is rejected per FR-013.
 - **FR-007**: Multiple filters MUST combine with AND logic.
 - **FR-008**: The API MUST return a single per-video report by video ID, with the full report content.
 - **FR-009**: Filtering and listing MUST NOT scan every stored file per request; they MUST be served from an index built from the stored files.
-- **FR-010**: The index MUST be built from the stored files when the API starts. The owner MUST be able to trigger an explicit index refresh while the API is running, without restarting. The API MUST NOT watch the storage directory in the background. While a refresh runs, list requests MUST keep using the previous index; the new index replaces it in a single switch once fully built.
+- **FR-010**: The index MUST be built from the stored files when the API starts. The owner MUST be able to trigger an explicit index refresh while the API is running, without restarting. The API MUST NOT watch the storage directory in the background. The owner triggers a refresh with `POST /index/refresh`. While a refresh runs, list requests MUST keep using the previous index; the new index replaces it in a single switch once fully built. If a refresh fails, the previous index MUST remain in use.
 - **FR-011**: The API MUST read stored data only through the project's existing storage access layer; it MUST NOT write, modify, or delete stored files.
 - **FR-012**: The API MUST NOT require authentication for v1.
-- **FR-013**: Invalid filter values, malformed identifiers, and unknown items MUST produce clear client-facing errors with the correct status meaning (invalid input vs. not found), never a server error.
+- **FR-013**: Invalid filter values, malformed identifiers, and unknown items MUST produce clear client-facing errors with the correct status meaning: 422 for invalid input, 404 for not found, never a server error. The one exception is a single-item request for an unreadable stored file, which returns HTTP 500 with a message naming the file (see Edge Cases).
 - **FR-014**: Unreadable or malformed stored files MUST NOT stop the API from serving other items; they MUST be logged and reported as skipped.
 - **FR-015**: Every report and digest response MUST include the disclaimer and transcript source present in the stored data, unchanged.
 - **FR-016**: Stored data MUST use only the canonical verdict names (True, Partially supported, Unverified, False). The legacy name "Partially supported/overstated" MUST NOT be written by the pipeline and MUST NOT remain in storage after the one-time migration in the Assumptions.

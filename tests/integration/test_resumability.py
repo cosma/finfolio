@@ -11,6 +11,12 @@ from finfolio.config import Config
 from finfolio.fact_checker import FactChecker, extract_completed_claim_ids
 
 
+@pytest.fixture(autouse=True)
+def tavily_key(monkeypatch):
+    """FactChecker builds a Tavily client at init. Give it a dummy key so the tests do not depend on .env."""
+    monkeypatch.setenv("TAVILY_API_KEY", "test-dummy-key")
+
+
 @pytest.mark.integration
 class TestResumability:
     """Test resumability: partial failure recovery."""
@@ -231,7 +237,7 @@ class TestResumability:
                 "verdict_count": 2,
                 "verdict_breakdown": {
                     "True": 1,
-                    "Partially supported/overstated": 0,
+                    "Partially supported": 0,
                     "Unverified": 0,
                     "False": 1,
                 },

@@ -47,7 +47,7 @@ class TestReportSchema:
             "verdict_count": 1,
             "verdict_breakdown": {
                 "True": 1,
-                "Partially supported/overstated": 0,
+                "Partially supported": 0,
                 "Unverified": 0,
                 "False": 0,
             },
@@ -80,7 +80,7 @@ class TestReportSchema:
             "verdict_count": 0,
             "verdict_breakdown": {
                 "True": 0,
-                "Partially supported/overstated": 0,
+                "Partially supported": 0,
                 "Unverified": 0,
                 "False": 0,
             },
@@ -111,7 +111,7 @@ class TestReportSchema:
             "verdict_count": 0,
             "verdict_breakdown": {
                 "True": 0,
-                "Partially supported/overstated": 0,
+                "Partially supported": 0,
                 "Unverified": 0,
                 "False": 0,
             },
@@ -185,7 +185,7 @@ class TestReportSchema:
             "verdict_count": 3,
             "verdict_breakdown": {
                 "True": 1,
-                "Partially supported/overstated": 0,
+                "Partially supported": 0,
                 "Unverified": 1,
                 "False": 1,
             },
@@ -197,7 +197,7 @@ class TestReportSchema:
         assert total == report.verdict_count == 3
 
     def test_report_with_partial_verdict(self):
-        """Test report with Partially supported/overstated verdict."""
+        """Test report with Partially supported verdict."""
         report_data = {
             "video_id": "test_vid",
             "title": "Test",
@@ -215,7 +215,7 @@ class TestReportSchema:
                 {
                     "claim_id": "claim_001",
                     "claim_text": "Partially correct claim",
-                    "verdict": "Partially supported/overstated",
+                    "verdict": "Partially supported",
                     "note": "Partially accurate but overstated",
                     "source_url": "https://example.com",
                     "source_title": "Source",
@@ -230,7 +230,7 @@ class TestReportSchema:
             "verdict_count": 1,
             "verdict_breakdown": {
                 "True": 0,
-                "Partially supported/overstated": 1,
+                "Partially supported": 1,
                 "Unverified": 0,
                 "False": 0,
             },
@@ -238,7 +238,7 @@ class TestReportSchema:
         }
 
         report = ReportModel(**report_data)
-        assert report.verdicts[0].verdict == "Partially supported/overstated"
+        assert report.verdicts[0]["verdict"] == "Partially supported"
 
     def test_report_empty_verdicts_valid(self):
         """Test that report with no verdicts is still valid."""
@@ -260,7 +260,7 @@ class TestReportSchema:
             "verdict_count": 0,
             "verdict_breakdown": {
                 "True": 0,
-                "Partially supported/overstated": 0,
+                "Partially supported": 0,
                 "Unverified": 0,
                 "False": 0,
             },

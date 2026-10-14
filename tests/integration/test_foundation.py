@@ -11,6 +11,12 @@ from finfolio.logging_utils import configure_logging
 from finfolio.models import ClaimModel, CostModel, ReportModel, VerdictModel
 
 
+@pytest.fixture(autouse=True)
+def tavily_key(monkeypatch):
+    """Tavily client construction needs a key. Give it a dummy one so the tests do not depend on .env."""
+    monkeypatch.setenv("TAVILY_API_KEY", "test-dummy-key")
+
+
 @pytest.mark.integration
 class TestFoundationSetup:
     """Test foundation infrastructure setup."""
@@ -30,7 +36,12 @@ class TestFoundationSetup:
 
     def test_config_has_defaults(self, monkeypatch):
         """Test that Config provides sensible defaults."""
-        for var in ("FINFOLIO_LLM_MODEL", "FINFOLIO_STORAGE_DIR", "FINFOLIO_SEARCH_TIMEOUT", "FINFOLIO_LOG_LEVEL"):
+        for var in (
+            "FINFOLIO_LLM_MODEL",
+            "FINFOLIO_STORAGE_DIR",
+            "FINFOLIO_SEARCH_TIMEOUT",
+            "FINFOLIO_LOG_LEVEL",
+        ):
             monkeypatch.delenv(var, raising=False)
         config = Config()
         assert config.llm_model == "claude-haiku-4-5-20251001"
@@ -122,7 +133,7 @@ class TestFoundationSetup:
             verdict_count=0,
             verdict_breakdown={
                 "True": 0,
-                "Partially supported/overstated": 0,
+                "Partially supported": 0,
                 "Unverified": 0,
                 "False": 0,
             },

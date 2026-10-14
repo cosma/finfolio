@@ -11,12 +11,12 @@ SEARCH RESULTS:
 Based on the search results, assign a verdict using EXACTLY ONE of these categories:
 - "True": The claim is supported by the search results
 - "False": The claim contradicts the search results
-- "Partially supported/overstated": The claim is partially true but overstated or has misleading elements
+- "Partially supported": The claim is partially true but overstated or has misleading elements
 - "Unverified": The search results do not provide enough information to verify or contradict the claim
 
 Respond in JSON format with exactly these fields:
 {{
-    "verdict": "True|False|Partially supported/overstated|Unverified",
+    "verdict": "True|False|Partially supported|Unverified",
     "note": "1-2 sentence explanation of the verdict (max 250 chars)",
     "source_url": "URL of the primary source used (null if Unverified)",
     "source_title": "Title of the source (null if Unverified)",

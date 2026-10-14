@@ -14,11 +14,11 @@ class TavilySearchClient:
     Includes error handling for timeouts, quota exhaustion, and no results.
     """
 
-    def __init__(self, api_key: str, timeout_seconds: float = 10.0):
+    def __init__(self, api_key: str | None, timeout_seconds: float = 10.0):
         """Initialize Tavily search client.
 
         Args:
-            api_key: Tavily API key (from environment)
+            api_key: Tavily API key (from environment); None lets the library read it
             timeout_seconds: Search timeout in seconds
         """
         self.api_key = api_key
@@ -33,7 +33,7 @@ class TavilySearchClient:
         try:
             from langchain_community.tools.tavily_search import TavilySearchResults
 
-            self.tool = TavilySearchResults(
+            self.tool: Any | None = TavilySearchResults(
                 api_key=self.api_key,
                 max_results=5,  # Max results per query
             )

@@ -62,3 +62,14 @@ Expected: all `tests/api` tests pass, and ruff and mypy report no errors.
 
 - **Empty lists but files exist**: run `POST /index/refresh` and check its `skipped` list for malformed files.
 - **500 on a single item**: the response names the file. Check its JSON with `python3 -m json.tool`.
+
+## Data migration (pending owner approval)
+
+Stored data still uses the legacy verdict name and digests lack the disclaimer. Both must be fixed before this module ships (FR-015, FR-016). The script is dry-run by default:
+
+```bash
+python scripts/migrate_verdict_names.py          # dry run: shows what would change
+python scripts/migrate_verdict_names.py --apply  # writes the changes (owner runs this)
+```
+
+Last dry run (2026-10-14): 69 reports with 344 legacy verdict occurrences to change; 5 digests to receive the disclaimer. Nothing has been written.
