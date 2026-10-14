@@ -128,3 +128,15 @@ def test_confidence_is_clamped_to_unit_interval(monkeypatch):
     checker.ddg_client.search.return_value = DDG_HIT
 
     assert checker.verify_claim(claim()).confidence == 1.0
+
+
+def test_true_or_false_without_source_is_invalid_output_not_a_crash(monkeypatch):
+    """A model verdict of False with no source_url must not stop the run; it is checked again."""
+    checker, _ = make_checker(monkeypatch, llm_fields={"verdict": "False", "source_url": None})
+    checker.ddg_client.search.return_value = DDG_HIT
+    checker.search_client.search.return_value = DDG_HIT
+
+    verdict = checker.verify_claim(claim())
+
+    assert verdict.verdict == "Unverified"
+    assert verdict.verified_by is None

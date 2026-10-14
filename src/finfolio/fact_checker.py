@@ -200,6 +200,11 @@ class FactChecker:
                 if field not in data:
                     raise ValueError(f"Missing required field: {field}")
 
+            # True and False need a source. Without one the model output is invalid, so it is
+            # treated like a failed parse and checked again, rather than stopping the run.
+            if data["verdict"] in ("True", "False") and not data.get("source_url"):
+                raise ValueError(f"{data['verdict']} verdict without source_url")
+
             # Truncate note to 250 characters max
             note = str(data["note"])[:250]
 
