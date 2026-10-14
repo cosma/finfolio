@@ -15,6 +15,7 @@ from finfolio.channel_monitor import ChannelMonitor
 from finfolio.config import Config, load_api_key, load_config
 from finfolio.fact_checker import FactChecker
 from finfolio.logging_utils import configure_logging
+from finfolio.search.tavily_client import SearchQuotaError
 from finfolio.storage import list_pending_videos, load_summary
 from finfolio.transcript_fetcher import TranscriptFetcher
 from finfolio.youtube_client import YouTubeClient
@@ -437,6 +438,12 @@ def factcheck(
                     click.echo("✓ processed")
                     videos_processed += 1
 
+            except SearchQuotaError as e:
+                # Searches are refused until credits are topped up. Partial verdicts are saved by fact_checker.
+                logger.error(f"Tavily quota exhausted at {vid_id}: {str(e)}")
+                click.echo(f"\n❌ Tavily search credits are used up at video {vid_id}.")
+                click.echo("Stopped. Partial verdicts are saved; re-run after topping up credits.")
+                sys.exit(2)
             except Exception as e:
                 # Any error during fact-checking - exit immediately
                 logger.error(f"Error processing {vid_id}: {str(e)}", exc_info=True)

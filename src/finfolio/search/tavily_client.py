@@ -2,9 +2,29 @@
 
 import json
 import logging
+import re
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+
+class SearchQuotaError(RuntimeError):
+    """Tavily refused searches because the credit allowance is used up.
+
+    Raised instead of returning no results, so a quota stop never becomes
+    "Unverified" verdicts. The run stops; re-run after topping up credits.
+    """
+
+
+_QUOTA_PATTERN = re.compile(
+    r"\b(432|429)\b.*client error|quota|usage limit|out of credits|insufficient credits",
+    re.IGNORECASE,
+)
+
+
+def _is_quota_message(text: str) -> bool:
+    """True if an error message says the Tavily quota or credits are used up."""
+    return bool(_QUOTA_PATTERN.search(text))
 
 
 class TavilySearchClient:
@@ -50,7 +70,8 @@ class TavilySearchClient:
 
         Returns:
             List of search results with title, URL, snippet
-            Empty list on error (timeout, quota, no results)
+            Empty list on timeout or no results. Raises SearchQuotaError when
+            the Tavily quota or credits are used up.
         """
         if not self.tool:
             logger.error("Tavily tool not initialized")
@@ -69,6 +90,8 @@ class TavilySearchClient:
                 try:
                     results = json.loads(results)
                 except json.JSONDecodeError:
+                    if _is_quota_message(results):
+                        raise SearchQuotaError(results) from None
                     logger.error(f"Failed to parse Tavily results: {results}")
                     return []
 
@@ -79,16 +102,16 @@ class TavilySearchClient:
             logger.info(f"Got {len(results)} results for query: {query}")
             return results
 
+        except SearchQuotaError:
+            raise
         except TimeoutError as e:
             logger.warning(f"Search timeout for query '{query}': {str(e)}")
             return []
         except Exception as e:
-            # Catch quota exhaustion, API errors, etc.
             error_msg = str(e)
-            if "quota" in error_msg.lower():
-                logger.warning(f"Tavily quota exhausted: {error_msg}")
-            else:
-                logger.error(f"Search error for query '{query}': {error_msg}")
+            if _is_quota_message(error_msg):
+                raise SearchQuotaError(error_msg) from e
+            logger.error(f"Search error for query '{query}': {error_msg}")
             return []
 
     def format_results_for_llm(self, results: list[dict[str, Any]]) -> str:
