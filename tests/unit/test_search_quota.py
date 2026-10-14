@@ -8,7 +8,8 @@ from click.testing import CliRunner
 from finfolio.cli import main
 from finfolio.fact_checker import FactChecker
 from finfolio.models import ClaimModel, VerdictModel
-from finfolio.search.tavily_client import SearchQuotaError, TavilySearchClient
+from finfolio.search.errors import SearchError, SearchQuotaError
+from finfolio.search.tavily_client import TavilySearchClient
 
 QUOTA_TEXT = "HTTPError('432 Client Error:  for url: https://api.tavily.com/search')"
 VIDEO_ID = "zzzzzzzzzzz"
@@ -45,11 +46,12 @@ def test_usage_limit_message_raises(monkeypatch):
         client.search("some claim")
 
 
-def test_other_error_still_returns_empty(monkeypatch):
+def test_other_error_raises_search_error(monkeypatch):
     client = make_search_client(monkeypatch)
     client.tool.invoke.side_effect = Exception("connection reset by peer")
 
-    assert client.search("some claim") == []
+    with pytest.raises(SearchError):
+        client.search("some claim")
 
 
 def test_valid_results_are_returned(monkeypatch):
@@ -114,13 +116,14 @@ def test_quota_stop_keeps_earlier_verdicts_and_adds_no_unverified(monkeypatch):
         patch.object(
             FactChecker,
             "fact_check_claim",
-            side_effect=lambda claim, results: make_verdict(claim.id),
+            side_effect=lambda claim, results, **kwargs: make_verdict(claim.id),
         ),
         patch("finfolio.storage.load_summary", return_value={"video_id": VIDEO_ID}),
         patch("finfolio.storage.has_report", return_value=False),
         patch("finfolio.storage.save_report") as save,
     ):
         checker = FactChecker(config)
+        checker.ddg_client.search = MagicMock(return_value=[])
         checker.search_client.search = MagicMock(
             side_effect=[
                 [{"url": "https://a.example", "content": "x"}],

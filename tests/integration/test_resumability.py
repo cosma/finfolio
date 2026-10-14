@@ -9,12 +9,18 @@ import pytest
 
 from finfolio.config import Config
 from finfolio.fact_checker import FactChecker, extract_completed_claim_ids
+from finfolio.search.tavily_client import TavilySearchClient
 
 
 @pytest.fixture(autouse=True)
 def tavily_key(monkeypatch):
-    """FactChecker builds a Tavily client at init. Give it a dummy key so the tests do not depend on .env."""
+    """Dummy key, and a fixed Tavily result, so these tests exercise resumability and never call the live API."""
     monkeypatch.setenv("TAVILY_API_KEY", "test-dummy-key")
+    monkeypatch.setattr(
+        TavilySearchClient,
+        "search",
+        lambda self, query: [{"title": "Source", "url": "https://example.com", "content": "x"}],
+    )
 
 
 @pytest.mark.integration

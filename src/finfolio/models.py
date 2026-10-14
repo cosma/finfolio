@@ -84,6 +84,13 @@ class VerdictModel(BaseModel):
     reasoning_cost: dict = Field(
         ..., description="Cost breakdown: {tokens_in, tokens_out, cost_usd}"
     )
+    verified_by: str | None = Field(
+        default=None,
+        description="Search provider that produced this verdict: duckduckgo or tavily. Missing on verdicts that must be re-checked.",
+    )
+    confidence: float | None = Field(
+        default=None, ge=0.0, le=1.0, description="LLM confidence in the verdict, 0.0 to 1.0"
+    )
 
     @model_validator(mode="after")
     def validate_source_url_for_verdict(self) -> "VerdictModel":
@@ -176,3 +183,12 @@ class ReportModel(BaseModel):
         return v
 
     model_config = {"str_strip_whitespace": True}
+
+
+def verdict_needs_recheck(verdict: dict) -> bool:
+    """True if a stored verdict must be checked again.
+
+    Verdicts written before verified_by existed, and verdicts from a failed LLM parse, have no
+    verified_by. An Unverified verdict without one may be a search failure, not a real finding.
+    """
+    return verdict.get("verdict") == "Unverified" and not verdict.get("verified_by")

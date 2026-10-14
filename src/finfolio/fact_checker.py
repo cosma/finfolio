@@ -9,10 +9,20 @@ from typing import Any
 from finfolio.config import Config
 from finfolio.llm.cost_tracking import CostTrackingCallback
 from finfolio.llm.prompts import get_verdict_prompt
-from finfolio.models import DISCLAIMER, ClaimModel, ReportModel, VerdictModel
+from finfolio.models import (
+    DISCLAIMER,
+    ClaimModel,
+    ReportModel,
+    VerdictModel,
+    verdict_needs_recheck,
+)
+from finfolio.search.ddg_client import DuckDuckGoSearchClient
 from finfolio.search.tavily_client import TavilySearchClient
 
 logger = logging.getLogger(__name__)
+
+# A DuckDuckGo verdict is accepted only at or above this confidence (see verify_claim).
+DDG_CONFIDENCE_THRESHOLD = 0.8
 
 
 class FactChecker:
@@ -30,6 +40,7 @@ class FactChecker:
         """
         self.config = config
         self.llm = self._get_llm()
+        self.ddg_client = DuckDuckGoSearchClient()
         self.search_client = TavilySearchClient(
             api_key=config.tavily_api_key, timeout_seconds=config.search_timeout_seconds
         )
@@ -61,8 +72,39 @@ class FactChecker:
             logger.error(f"Failed to import ChatAnthropic: {str(e)}")
             raise
 
+    def verify_claim(self, claim: ClaimModel) -> VerdictModel:
+        """Verify one claim: DuckDuckGo first, Tavily when DuckDuckGo is not a confident answer.
+
+        A DuckDuckGo failure or empty result just moves on to Tavily. A Tavily failure raises
+        SearchError, which stops the run; it never becomes an Unverified verdict.
+        """
+        try:
+            ddg_results = self.ddg_client.search(claim.text)
+        except Exception as e:
+            logger.warning(f"DuckDuckGo search failed for {claim.id}, using Tavily: {e}")
+            ddg_results = []
+
+        if ddg_results:
+            verdict = self.fact_check_claim(claim, ddg_results, search_provider="duckduckgo")
+            if (
+                verdict.verdict != "Unverified"
+                and verdict.confidence is not None
+                and verdict.confidence >= DDG_CONFIDENCE_THRESHOLD
+            ):
+                logger.info(
+                    f"Verified {claim.id} with DuckDuckGo (confidence {verdict.confidence})"
+                )
+                return verdict
+            logger.info(f"DuckDuckGo not confident for {claim.id}, using Tavily")
+
+        tavily_results = self.search_client.search(claim.text)
+        return self.fact_check_claim(claim, tavily_results, search_provider="tavily")
+
     def fact_check_claim(
-        self, claim: ClaimModel, search_results: list[dict[str, Any]]
+        self,
+        claim: ClaimModel,
+        search_results: list[dict[str, Any]],
+        search_provider: str = "tavily",
     ) -> VerdictModel:
         """Fact-check a single claim using LLM + search results.
 
@@ -98,6 +140,8 @@ class FactChecker:
             source_title=verdict_dict.get("source_title"),
             source_date=verdict_dict.get("source_date"),
             search_query=claim.text,  # Query used for search
+            verified_by=search_provider if verdict_dict["parsed"] else None,
+            confidence=verdict_dict["confidence"],
             fact_checked_at=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
             llm_model=self.config.llm_model,
             reasoning_cost={
@@ -159,7 +203,19 @@ class FactChecker:
             # Truncate note to 250 characters max
             note = str(data["note"])[:250]
 
+            raw_confidence = data.get("confidence")
+            try:
+                confidence = (
+                    min(1.0, max(0.0, float(raw_confidence)))
+                    if raw_confidence is not None
+                    else None
+                )
+            except (TypeError, ValueError):
+                confidence = None
+
             return {
+                "parsed": True,
+                "confidence": confidence,
                 "verdict": data["verdict"],
                 "note": note,
                 "source_url": data.get("source_url"),
@@ -170,6 +226,8 @@ class FactChecker:
             logger.error(f"Failed to parse verdict response: {str(e)}")
             # Return safe default
             return {
+                "parsed": False,
+                "confidence": None,
                 "verdict": "Unverified",
                 "note": "Could not parse LLM response",
                 "source_url": None,
@@ -378,16 +436,10 @@ class FactChecker:
                     skipped_claims.append(claim.id)
                     continue
 
-                # Search for claim
-                logger.debug(f"Searching for claim: {claim.text}")
-                search_results = self.search_client.search(claim.text)
-                logger.info(
-                    f"Search returned {len(search_results)} results for {claim.id}",
-                    extra={"claim_id": claim.id, "result_count": len(search_results)},
-                )
-
-                # Fact-check claim
-                verdict = self.fact_check_claim(claim, search_results)
+                # Verify claim (DuckDuckGo first, Tavily fallback). A search failure raises and stops the run.
+                verdict = self.verify_claim(claim)
+                # Drop any older verdict for this claim, such as a legacy Unverified one being re-checked.
+                verdicts = [v for v in verdicts if v.get("claim_id") != claim.id]
                 verdicts.append(verdict.model_dump())
                 newly_verified += 1
                 logger.info(
@@ -478,7 +530,9 @@ def extract_completed_claim_ids(report: dict | None) -> set[str]:
         return set()
 
     verdicts = report.get("verdicts", [])
-    return {v.get("claim_id") for v in verdicts if v.get("claim_id")}
+    return {
+        v.get("claim_id") for v in verdicts if v.get("claim_id") and not verdict_needs_recheck(v)
+    }
 
 
 def extract_claims_from_summary(summary: dict) -> list[ClaimModel]:

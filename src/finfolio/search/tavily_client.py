@@ -5,15 +5,9 @@ import logging
 import re
 from typing import Any
 
+from finfolio.search.errors import SearchError, SearchQuotaError
+
 logger = logging.getLogger(__name__)
-
-
-class SearchQuotaError(RuntimeError):
-    """Tavily refused searches because the credit allowance is used up.
-
-    Raised instead of returning no results, so a quota stop never becomes
-    "Unverified" verdicts. The run stops; re-run after topping up credits.
-    """
 
 
 _QUOTA_PATTERN = re.compile(
@@ -70,12 +64,11 @@ class TavilySearchClient:
 
         Returns:
             List of search results with title, URL, snippet
-            Empty list on timeout or no results. Raises SearchQuotaError when
-            the Tavily quota or credits are used up.
+            Empty list when there are no results. Raises SearchError on any failure,
+            and SearchQuotaError when the Tavily credits are used up.
         """
         if not self.tool:
-            logger.error("Tavily tool not initialized")
-            return []
+            raise SearchError("Tavily tool not initialized")
 
         try:
             logger.info(f"Searching: {query}")
@@ -92,8 +85,7 @@ class TavilySearchClient:
                 except json.JSONDecodeError:
                     if _is_quota_message(results):
                         raise SearchQuotaError(results) from None
-                    logger.error(f"Failed to parse Tavily results: {results}")
-                    return []
+                    raise SearchError(f"Could not parse Tavily results: {results}") from None
 
             # Ensure results is a list
             if not isinstance(results, list):
@@ -105,14 +97,12 @@ class TavilySearchClient:
         except SearchQuotaError:
             raise
         except TimeoutError as e:
-            logger.warning(f"Search timeout for query '{query}': {str(e)}")
-            return []
+            raise SearchError(f"Tavily search timed out: {e}") from e
         except Exception as e:
             error_msg = str(e)
             if _is_quota_message(error_msg):
                 raise SearchQuotaError(error_msg) from e
-            logger.error(f"Search error for query '{query}': {error_msg}")
-            return []
+            raise SearchError(f"Tavily search failed: {error_msg}") from e
 
     def format_results_for_llm(self, results: list[dict[str, Any]]) -> str:
         """Format search results for LLM consumption.

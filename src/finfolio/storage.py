@@ -8,6 +8,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from finfolio.models import verdict_needs_recheck
+
 logger = logging.getLogger(__name__)
 
 
@@ -316,11 +318,36 @@ def load_summary(video_id: str) -> dict[str, Any] | None:
         raise
 
 
-def list_pending_videos() -> list[str]:
-    """List video IDs with summaries but no reports.
+def _report_needs_recheck(video_id: str) -> bool:
+    """True if a stored report still needs fact-checking.
 
-    Scans storage/summaries/ and returns video_ids that don't have
-    corresponding reports in storage/reports/videos/.
+    That is a verdict to check again, or a checkable claim (not opinion or forecast) with no verdict.
+    """
+    try:
+        report = load_report(video_id)
+        summary = load_summary(video_id)
+    except ValueError:
+        return False
+    if report is None:
+        return False
+    verdicts = report.get("verdicts", [])
+    if any(verdict_needs_recheck(v) for v in verdicts):
+        return True
+    if summary is None:
+        return False
+    checkable = {
+        c.get("id")
+        for c in summary.get("claims", [])
+        if not c.get("is_opinion") and not c.get("is_forecast")
+    }
+    return bool(checkable - {v.get("claim_id") for v in verdicts})
+
+
+def list_pending_videos() -> list[str]:
+    """List video IDs with summaries that still need fact-checking.
+
+    A video is pending if it has no report, or if its report has verdicts to check again
+    (see verdict_needs_recheck).
     """
     ensure_summaries_dir()
 
@@ -330,7 +357,7 @@ def list_pending_videos() -> list[str]:
     pending = []
     for summary_file in SUMMARIES_DIR.glob("*.json"):
         video_id = summary_file.stem  # filename without .json
-        if not has_report(video_id):
+        if not has_report(video_id) or _report_needs_recheck(video_id):
             pending.append(video_id)
 
     return sorted(pending)
