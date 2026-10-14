@@ -9,7 +9,7 @@ from typing import Any
 from finfolio.config import Config
 from finfolio.llm.cost_tracking import CostTrackingCallback
 from finfolio.llm.prompts import get_verdict_prompt
-from finfolio.models import ClaimModel, ReportModel, VerdictModel
+from finfolio.models import DISCLAIMER, ClaimModel, ReportModel, VerdictModel
 from finfolio.search.tavily_client import TavilySearchClient
 
 logger = logging.getLogger(__name__)
@@ -44,12 +44,17 @@ class FactChecker:
         """
         try:
             from langchain_anthropic import ChatAnthropic
+            from pydantic import SecretStr
 
-            llm = ChatAnthropic(
-                model=self.config.llm_model,
-                temperature=0,  # Deterministic verdict reasoning
-                api_key=self.config.anthropic_api_key,
-            )
+            # Built as a dict: the ChatAnthropic stubs disagree with its runtime alias names.
+            llm_kwargs: dict[str, Any] = {
+                "model": self.config.llm_model,
+                "temperature": 0,  # Deterministic verdict reasoning
+            }
+            if self.config.anthropic_api_key:
+                # Omitted when unset, so the library falls back to ANTHROPIC_API_KEY.
+                llm_kwargs["api_key"] = SecretStr(self.config.anthropic_api_key)
+            llm = ChatAnthropic(**llm_kwargs)
             logger.info(f"LLM initialized: {self.config.llm_model}")
             return llm
         except ImportError as e:
@@ -223,7 +228,7 @@ class FactChecker:
         # Calculate verdict breakdown
         verdict_breakdown = {
             "True": 0,
-            "Partially supported/overstated": 0,
+            "Partially supported": 0,
             "Unverified": 0,
             "False": 0,
         }
@@ -257,7 +262,7 @@ class FactChecker:
             "claim_count": len(summary.get("claims", [])),
             "verdict_count": len(verdicts),
             "verdict_breakdown": verdict_breakdown,
-            "disclaimer": "FinFolio reports facts and their accuracy. This is not financial advice.",
+            "disclaimer": DISCLAIMER,
         }
 
         logger.info(f"Report built for video {video_id} with {len(verdicts)} verdicts")
@@ -284,7 +289,7 @@ class FactChecker:
             Exception: On critical errors (API keys, storage issues)
         """
         start_time = time.time()
-        verdicts = []
+        verdicts: list[dict[str, Any]] = []
         summary = None
         claims = []
 
@@ -327,7 +332,11 @@ class FactChecker:
 
                     logger.info(
                         f"Resuming video {video_id}: {len(completed_ids)} of {claim_count} claims already verified",
-                        extra={"video_id": video_id, "completed_count": len(completed_ids), "total_count": claim_count},
+                        extra={
+                            "video_id": video_id,
+                            "completed_count": len(completed_ids),
+                            "total_count": claim_count,
+                        },
                     )
             except Exception as e:
                 logger.warning(f"Could not load existing report for {video_id}: {str(e)}")
@@ -442,7 +451,7 @@ class FactChecker:
                 try:
                     duration_seconds = time.time() - start_time
                     verdict_models = [VerdictModel(**v) for v in verdicts]
-                    report_data = self.build_report(video_id, summary, verdict_models)
+                    report_data = self.build_report(video_id, summary or {}, verdict_models)
                     report_data["fact_check_duration_seconds"] = duration_seconds
                     save_report(video_id, report_data)
                     logger.info(
@@ -450,9 +459,7 @@ class FactChecker:
                         extra={"video_id": video_id, "verdict_count": len(verdicts)},
                     )
                 except Exception as save_error:
-                    logger.error(
-                        f"Failed to save partial report for {video_id}: {str(save_error)}"
-                    )
+                    logger.error(f"Failed to save partial report for {video_id}: {str(save_error)}")
             raise
 
 

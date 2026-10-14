@@ -25,6 +25,7 @@ class TestStorage:
     def test_save_transcript_writes_file(self, tmp_path):
         """Test that save_transcript writes transcript to disk as JSON."""
         import json
+
         storage_dir = tmp_path / "storage"
         transcripts_dir = storage_dir / "transcripts"
         transcripts_dir.mkdir(parents=True)
@@ -214,7 +215,7 @@ class TestFactCheckingReportStorage:
             "verdict_count": 0,
             "verdict_breakdown": {
                 "True": 0,
-                "Partially supported/overstated": 0,
+                "Partially supported": 0,
                 "Unverified": 0,
                 "False": 0,
             },
@@ -264,7 +265,7 @@ class TestFactCheckingReportStorage:
             "verdict_count": 0,
             "verdict_breakdown": {
                 "True": 0,
-                "Partially supported/overstated": 0,
+                "Partially supported": 0,
                 "Unverified": 0,
                 "False": 0,
             },

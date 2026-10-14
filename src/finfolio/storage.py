@@ -1,12 +1,20 @@
 """Filesystem abstraction for transcript and state storage."""
+
 import json
 import logging
+import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+
+class StoredFileError(ValueError):
+    """A stored file exists but cannot be parsed. The message names the item."""
+
+
 STORAGE_DIR = Path("storage")
 TRANSCRIPTS_DIR = STORAGE_DIR / "transcripts"
 SUMMARIES_DIR = STORAGE_DIR / "summaries"
@@ -20,7 +28,7 @@ def _log_operation(event: str, status: str, **kwargs: Any) -> None:
         "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "event": event,
         "status": status,
-        **kwargs
+        **kwargs,
     }
     print(json.dumps(log_entry, default=str))
     sys.stdout.flush()
@@ -45,14 +53,15 @@ def save_transcript(video_id: str, text: str, publication_timestamp: str | None 
     tmp_file = TRANSCRIPTS_DIR / f"{video_id}.json.tmp"
 
     try:
-        transcript_data = {
-            "publication_timestamp": publication_timestamp,
-            "content": text
-        }
+        transcript_data = {"publication_timestamp": publication_timestamp, "content": text}
         tmp_file.write_text(json.dumps(transcript_data, indent=2), encoding="utf-8")
         tmp_file.replace(transcript_file)
-        _log_operation("transcript_saved", "success", video_id=video_id,
-                      publication_timestamp=publication_timestamp)
+        _log_operation(
+            "transcript_saved",
+            "success",
+            video_id=video_id,
+            publication_timestamp=publication_timestamp,
+        )
     except Exception as e:
         _log_operation("transcript_save_failed", "failed", video_id=video_id, error=str(e))
         raise
@@ -70,7 +79,8 @@ def load_transcript(video_id: str) -> dict[str, Any] | None:
     json_file = TRANSCRIPTS_DIR / f"{video_id}.json"
     if json_file.exists():
         try:
-            return json.loads(json_file.read_text())
+            transcript: dict[str, Any] = json.loads(json_file.read_text())
+            return transcript
         except Exception as e:
             logger.error(f"Failed to load transcript {video_id}: {e}")
             return None
@@ -99,7 +109,8 @@ def load_state() -> dict[str, Any]:
     if not STATE_FILE.exists():
         return {}
     try:
-        return json.loads(STATE_FILE.read_text())
+        state: dict[str, Any] = json.loads(STATE_FILE.read_text())
+        return state
     except Exception as e:
         _log_operation("state_load_failed", "failed", error=str(e))
         return {}
@@ -161,7 +172,7 @@ def save_video_metadata(video_id: str, title: str, channel_id: str, published_at
         "title": title,
         "channel_id": channel_id,
         "published_at": published_at,
-        "url": f"https://www.youtube.com/watch?v={video_id}"
+        "url": f"https://www.youtube.com/watch?v={video_id}",
     }
     save_state(state)
     _log_operation("video_metadata_saved", "success", video_id=video_id, title=title)
@@ -172,7 +183,8 @@ def get_video_metadata(video_id: str) -> dict[str, Any] | None:
     state = load_state()
     if "videos" not in state or video_id not in state["videos"]:
         return None
-    return state["videos"][video_id]
+    video: dict[str, Any] = state["videos"][video_id]
+    return video
 
 
 def get_videos_by_channel(channel_id: str) -> list[dict[str, Any]]:
@@ -247,12 +259,7 @@ def save_report(video_id: str, report_data: dict[str, Any]) -> None:
         # Validate report_data against schema
         ReportModel(**report_data)
     except Exception as e:
-        _log_operation(
-            "report_validation_failed",
-            "failed",
-            video_id=video_id,
-            error=str(e)
-        )
+        _log_operation("report_validation_failed", "failed", video_id=video_id, error=str(e))
         raise
 
     report_file = REPORTS_DIR / f"{video_id}.json"
@@ -260,20 +267,12 @@ def save_report(video_id: str, report_data: dict[str, Any]) -> None:
 
     try:
         # Write to temporary file first
-        tmp_file.write_text(
-            json.dumps(report_data, indent=2, default=str),
-            encoding="utf-8"
-        )
+        tmp_file.write_text(json.dumps(report_data, indent=2, default=str), encoding="utf-8")
         # Atomic rename
         tmp_file.replace(report_file)
         _log_operation("report_saved", "success", video_id=video_id)
     except Exception as e:
-        _log_operation(
-            "report_save_failed",
-            "failed",
-            video_id=video_id,
-            error=str(e)
-        )
+        _log_operation("report_save_failed", "failed", video_id=video_id, error=str(e))
         raise
 
 
@@ -286,7 +285,7 @@ def has_report(video_id: str) -> bool:
         _log_operation(
             "reports_dir_missing",
             "warning",
-            message="storage/reports/videos/ directory does not exist"
+            message="storage/reports/videos/ directory does not exist",
         )
         return False
     return (REPORTS_DIR / f"{video_id}.json").exists()
@@ -305,22 +304,15 @@ def load_summary(video_id: str) -> dict[str, Any] | None:
 
     try:
         content = summary_file.read_text(encoding="utf-8")
-        return json.loads(content)
+        summary: dict[str, Any] = json.loads(content)
+        return summary
     except json.JSONDecodeError as e:
         _log_operation(
-            "summary_load_failed",
-            "failed",
-            video_id=video_id,
-            error=f"Invalid JSON: {str(e)}"
+            "summary_load_failed", "failed", video_id=video_id, error=f"Invalid JSON: {str(e)}"
         )
         raise ValueError(f"Invalid JSON in summary file for {video_id}: {str(e)}") from e
     except Exception as e:
-        _log_operation(
-            "summary_load_failed",
-            "failed",
-            video_id=video_id,
-            error=str(e)
-        )
+        _log_operation("summary_load_failed", "failed", video_id=video_id, error=str(e))
         raise
 
 
@@ -400,10 +392,7 @@ def save_monthly_digest(year: int, month: int, digest_data: dict[str, Any]) -> P
     tmp_file = DIGESTS_DIR / f"{year:04d}-{month:02d}.json.tmp"
 
     try:
-        tmp_file.write_text(
-            json.dumps(digest_data, indent=2, default=str),
-            encoding="utf-8"
-        )
+        tmp_file.write_text(json.dumps(digest_data, indent=2, default=str), encoding="utf-8")
         tmp_file.replace(digest_file)
         month_str = f"{year:04d}-{month:02d}"
         _log_operation("digest_saved", "success", month=month_str, path=str(digest_file))
@@ -412,3 +401,84 @@ def save_monthly_digest(year: int, month: int, digest_data: dict[str, Any]) -> P
         month_str = f"{year:04d}-{month:02d}"
         _log_operation("digest_save_failed", "failed", month=month_str, error=str(e))
         raise
+
+
+# Read helpers for the API layer (Module 5)
+
+
+def list_report_ids() -> list[str]:
+    """List video IDs that have a stored report, sorted.
+
+    Returns an empty list if storage/reports/videos/ is missing.
+    """
+    if not REPORTS_DIR.exists():
+        return []
+    return sorted(p.stem for p in REPORTS_DIR.glob("*.json"))
+
+
+def load_report(video_id: str) -> dict[str, Any] | None:
+    """Load a per-video report from storage/reports/videos/{video_id}.json.
+
+    Returns None if missing.
+    Raises ValueError if JSON is invalid.
+    """
+    report_file = REPORTS_DIR / f"{video_id}.json"
+    if not report_file.exists():
+        return None
+    try:
+        report: dict[str, Any] = json.loads(report_file.read_text(encoding="utf-8"))
+        return report
+    except json.JSONDecodeError as e:
+        _log_operation(
+            "report_load_failed", "failed", video_id=video_id, error=f"Invalid JSON: {e}"
+        )
+        raise StoredFileError(f"Invalid JSON in report file for {video_id}: {e}") from e
+
+
+def list_digest_months() -> list[str]:
+    """List months (YYYY-MM) that have a stored monthly digest, sorted.
+
+    Returns an empty list if storage/reports/monthly/ is missing.
+    """
+    if not DIGESTS_DIR.exists():
+        return []
+    return sorted(p.stem for p in DIGESTS_DIR.glob("*.json"))
+
+
+def load_monthly_digest(year: int, month: int) -> dict[str, Any] | None:
+    """Load a monthly digest from storage/reports/monthly/YYYY-MM.json.
+
+    Returns None if missing.
+    Raises ValueError if JSON is invalid.
+    """
+    month_str = f"{year:04d}-{month:02d}"
+    digest_file = DIGESTS_DIR / f"{month_str}.json"
+    if not digest_file.exists():
+        return None
+    try:
+        digest: dict[str, Any] = json.loads(digest_file.read_text(encoding="utf-8"))
+        return digest
+    except json.JSONDecodeError as e:
+        _log_operation("digest_load_failed", "failed", month=month_str, error=f"Invalid JSON: {e}")
+        raise StoredFileError(f"Invalid JSON in digest file for {month_str}: {e}") from e
+
+
+def index_file_path() -> Path:
+    """Location of the derived API index (inside storage/, gitignored)."""
+    return STORAGE_DIR / ".finfolio-api-index.sqlite"
+
+
+def prepare_index_build(tmp: Path) -> None:
+    """Create the index directory and clear any leftover temp file from an interrupted build."""
+    tmp.parent.mkdir(parents=True, exist_ok=True)
+    tmp.unlink(missing_ok=True)
+
+
+def discard_index_build(tmp: Path) -> None:
+    """Remove a temp index file after a failed build."""
+    tmp.unlink(missing_ok=True)
+
+
+def publish_index_build(tmp: Path, live: Path) -> None:
+    """Atomically replace the live index with a finished build."""
+    os.replace(tmp, live)

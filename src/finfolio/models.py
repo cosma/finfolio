@@ -5,6 +5,9 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+# Fixed disclaimer carried by every report and digest (Constitution Principle II).
+DISCLAIMER = "FinFolio reports facts and their accuracy. This is not financial advice."
+
 
 class ClaimModel(BaseModel):
     """Represents a factual claim extracted from a video transcript."""
@@ -66,7 +69,7 @@ class VerdictModel(BaseModel):
 
     claim_id: str = Field(..., description="Reference to Claim.id")
     claim_text: str = Field(..., description="Denormalized claim text for readability")
-    verdict: Literal["True", "Partially supported/overstated", "Unverified", "False"] = Field(
+    verdict: Literal["True", "Partially supported", "Unverified", "False"] = Field(
         ..., description="Verdict category"
     )
     note: str = Field(
@@ -125,7 +128,7 @@ class ReportModel(BaseModel):
     verdict_count: int = Field(..., ge=0, description="Verdicts assigned")
     verdict_breakdown: dict = Field(
         ...,
-        description="Breakdown by verdict type: {True, Partially supported/overstated, Unverified, False}",
+        description="Breakdown by verdict type: {True, Partially supported, Unverified, False}",
     )
 
     # Report footer
@@ -138,9 +141,8 @@ class ReportModel(BaseModel):
     @classmethod
     def validate_disclaimer(cls, v: str) -> str:
         """Validate that disclaimer is the exact fixed text."""
-        expected = "FinFolio reports facts and their accuracy. This is not financial advice."
-        if v != expected:
-            raise ValueError(f'Disclaimer must be exactly: "{expected}". Got: "{v}"')
+        if v != DISCLAIMER:
+            raise ValueError(f'Disclaimer must be exactly: "{DISCLAIMER}". Got: "{v}"')
         return v
 
     @field_validator("verdict_count")
@@ -159,7 +161,7 @@ class ReportModel(BaseModel):
     def validate_verdict_breakdown(cls, v: dict, info) -> dict:
         """Validate that verdict_breakdown sums to verdict_count."""
         if "verdict_count" in info.data:
-            expected_keys = {"True", "Partially supported/overstated", "Unverified", "False"}
+            expected_keys = {"True", "Partially supported", "Unverified", "False"}
             actual_keys = set(v.keys())
             if actual_keys != expected_keys:
                 raise ValueError(

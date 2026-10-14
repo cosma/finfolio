@@ -222,7 +222,7 @@ class TestVerdictModel:
         verdict = VerdictModel(
             claim_id="claim_003",
             claim_text="Test partial claim",
-            verdict="Partially supported/overstated",
+            verdict="Partially supported",
             note="Partially accurate but overstated.",
             source_url="https://example.com/partial",
             source_title="Example Partial",
@@ -232,7 +232,24 @@ class TestVerdictModel:
             llm_model="claude-haiku-4-5-20251001",
             reasoning_cost={"tokens_in": 420, "tokens_out": 75, "cost_usd": 0.00008},
         )
-        assert verdict.verdict == "Partially supported/overstated"
+        assert verdict.verdict == "Partially supported"
+
+    def test_legacy_partially_supported_name_rejected(self):
+        """The legacy 'Partially supported/overstated' name must fail validation (FR-016)."""
+        with pytest.raises(ValidationError):
+            VerdictModel(
+                claim_id="claim_legacy",
+                claim_text="Legacy verdict name",
+                verdict="Partially supported/overstated",
+                note="Should be rejected.",
+                source_url="https://example.com/legacy",
+                source_title="Example Legacy",
+                source_date="2026-09-25",
+                search_query="test query",
+                fact_checked_at="2026-09-25T15:30:05Z",
+                llm_model="claude-haiku-4-5-20251001",
+                reasoning_cost={"tokens_in": 420, "tokens_out": 75, "cost_usd": 0.00008},
+            )
 
     def test_valid_verdict_unverified(self):
         """Test creating an Unverified verdict."""
@@ -387,7 +404,7 @@ class TestReportModel:
             verdict_count=0,
             verdict_breakdown={
                 "True": 0,
-                "Partially supported/overstated": 0,
+                "Partially supported": 0,
                 "Unverified": 0,
                 "False": 0,
             },
@@ -420,7 +437,7 @@ class TestReportModel:
                 verdict_count=0,
                 verdict_breakdown={
                     "True": 0,
-                    "Partially supported/overstated": 0,
+                    "Partially supported": 0,
                     "Unverified": 0,
                     "False": 0,
                 },
@@ -448,7 +465,7 @@ class TestReportModel:
                 verdict_count=0,
                 verdict_breakdown={
                     "True": 0,
-                    "Partially supported/overstated": 0,
+                    "Partially supported": 0,
                     "Unverified": 0,
                     "False": 0,
                 },
@@ -476,7 +493,7 @@ class TestReportModel:
                 verdict_count=5,  # Mismatch: should be 0
                 verdict_breakdown={
                     "True": 0,
-                    "Partially supported/overstated": 0,
+                    "Partially supported": 0,
                     "Unverified": 0,
                     "False": 0,
                 },
@@ -504,7 +521,7 @@ class TestReportModel:
                 verdict_count=1,
                 verdict_breakdown={
                     "True": 0,
-                    "Partially supported/overstated": 0,
+                    "Partially supported": 0,
                     "Unverified": 0,
                     "False": 0,
                 },  # Sums to 0, not 1

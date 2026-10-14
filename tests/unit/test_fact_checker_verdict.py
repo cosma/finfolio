@@ -11,6 +11,12 @@ import pytest
 from finfolio.models import ClaimModel, VerdictModel
 
 
+@pytest.fixture(autouse=True)
+def tavily_key(monkeypatch):
+    """FactChecker builds a Tavily client at init. Give it a dummy key so the tests do not depend on .env."""
+    monkeypatch.setenv("TAVILY_API_KEY", "test-dummy-key")
+
+
 @pytest.mark.unit
 class TestVerdictAssignment:
     """Test fact_check_claim verdict assignment logic."""
@@ -61,7 +67,7 @@ class TestVerdictAssignment:
             assert result.verdict in (
                 "True",
                 "False",
-                "Partially supported/overstated",
+                "Partially supported",
                 "Unverified",
             )
 
@@ -230,8 +236,8 @@ class TestVerdictAssignment:
             checker = FactChecker(mock_config)
             with patch.object(checker, "llm") as mock_llm:
                 mock_response = MagicMock()
-                mock_response.content = '{"verdict": "Partially supported/overstated", "note": "Partially accurate", "source_url": "https://example.com", "source_title": "Source", "source_date": "2026-09-25"}'
+                mock_response.content = '{"verdict": "Partially supported", "note": "Partially accurate", "source_url": "https://example.com", "source_title": "Source", "source_date": "2026-09-25"}'
                 mock_llm.invoke.return_value = mock_response
 
                 result = checker.fact_check_claim(claim, [{"content": "partial"}])
-                assert result.verdict == "Partially supported/overstated"
+                assert result.verdict == "Partially supported"

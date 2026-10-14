@@ -8,11 +8,14 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
+from finfolio.models import DISCLAIMER
+
 logger = logging.getLogger(__name__)
 
 
 class VerdictBreakdown(BaseModel):
     """Counts of each verdict type."""
+
     true: int = Field(ge=0, alias="True")
     partially_supported: int = Field(ge=0, alias="Partially supported")
     unverified: int = Field(ge=0, alias="Unverified")
@@ -23,6 +26,7 @@ class VerdictBreakdown(BaseModel):
 
 class ChannelDigest(BaseModel):
     """Aggregated verdict statistics for a single channel."""
+
     channel_name: str = Field(min_length=1, max_length=100)
     channel_url: str = Field(pattern="^https://")
     video_count: int = Field(ge=1)
@@ -31,12 +35,14 @@ class ChannelDigest(BaseModel):
 
 class MonetizationEntry(BaseModel):
     """One unique monetization disclosure in the month."""
+
     channel_name: str = Field(min_length=1)
     disclosure: str = Field(min_length=1)
 
 
 class Digest(BaseModel):
     """Aggregated monthly fact-checking statistics."""
+
     month: str = Field(pattern=r"^\d{4}-\d{2}$")
     generated_at: str
     report_count: int = Field(ge=0)
@@ -132,19 +138,23 @@ class MonthlyDigest:
         per_channel_list = []
         for channel_name in sorted(self.channel_stats.keys()):
             stats = self.channel_stats[channel_name]
-            per_channel_list.append({
-                "channel_name": channel_name,
-                "channel_url": stats["channel_url"],
-                "video_count": stats["videos"],
-                "verdict_breakdown": stats["verdicts"],
-            })
+            per_channel_list.append(
+                {
+                    "channel_name": channel_name,
+                    "channel_url": stats["channel_url"],
+                    "video_count": stats["videos"],
+                    "verdict_breakdown": stats["verdicts"],
+                }
+            )
 
         monetization_list = []
-        for (channel_name, disclosure) in sorted(self.monetization_entries.keys()):
-            monetization_list.append({
-                "channel_name": channel_name,
-                "disclosure": disclosure,
-            })
+        for channel_name, disclosure in sorted(self.monetization_entries.keys()):
+            monetization_list.append(
+                {
+                    "channel_name": channel_name,
+                    "disclosure": disclosure,
+                }
+            )
 
         return {
             "month": self.month_str,
@@ -153,6 +163,7 @@ class MonthlyDigest:
             "verdict_breakdown": self.overall_verdicts,
             "per_channel_breakdown": per_channel_list,
             "monetization_summary": monetization_list,
+            "disclaimer": DISCLAIMER,
         }
 
 
@@ -183,7 +194,8 @@ def load_report(report_path: Path) -> dict[str, Any] | None:
     """
     try:
         with open(report_path) as f:
-            return json.load(f)
+            report: dict[str, Any] = json.load(f)
+            return report
     except (OSError, json.JSONDecodeError) as e:
         logger.error(f"Failed to load report {report_path.name}: {e}")
         return None
