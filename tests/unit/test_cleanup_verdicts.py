@@ -79,3 +79,21 @@ def test_not_pending_when_only_opinion_claims_lack_verdicts(tmp_path, monkeypatc
     monkeypatch.setattr(storage, "REPORTS_DIR", reports)
 
     assert storage.list_pending_videos() == []
+
+
+def test_clean_report_drops_top_level_search_provider():
+    report = {"verdicts": [], "search_provider": "Tavily"}
+
+    cleaned, _, _ = cleanup.clean_report(report)
+
+    assert "search_provider" not in cleaned
+
+
+def test_final_unverified_verdict_with_verified_by_is_kept():
+    """An Unverified verdict recorded as final (verified_by set, FR-013) is not removed."""
+    report = {"verdicts": [{"claim_id": "c0", "verdict": "Unverified", "verified_by": "tavily"}]}
+
+    cleaned, removed, _ = cleanup.clean_report(report)
+
+    assert [v["claim_id"] for v in cleaned["verdicts"]] == ["c0"]
+    assert removed == 0

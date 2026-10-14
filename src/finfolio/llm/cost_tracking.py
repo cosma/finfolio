@@ -22,15 +22,20 @@ class CostTrackingCallback:
         self.calls = []
 
     def on_llm_end(self, response: Any, **kwargs: Any) -> None:
-        """Called when LLM call completes.
+        """Called when LLM call completes. Records the call; see record()."""
+        self.record(response)
 
-        Extracts token usage and cost from response.
+    def record(self, response: Any) -> dict[str, Any]:
+        """Record one LLM call's tokens and cost, and return them.
+
+        Reads LangChain's usage_metadata (input_tokens, output_tokens). A reply without
+        usage counts as zero tokens, so every call is still logged.
         """
         try:
-            # Extract token usage from response
-            if hasattr(response, "usage"):
-                tokens_in = response.usage.prompt_tokens
-                tokens_out = response.usage.completion_tokens
+            usage = getattr(response, "usage_metadata", None)
+            if isinstance(usage, dict):
+                tokens_in = int(usage.get("input_tokens", 0))
+                tokens_out = int(usage.get("output_tokens", 0))
             else:
                 tokens_in = 0
                 tokens_out = 0
@@ -65,9 +70,15 @@ class CostTrackingCallback:
                 "cost_usd": round(call_cost, 6),
             }
             logger.info(json.dumps(log_entry, default=str))
+            return {
+                "tokens_in": tokens_in,
+                "tokens_out": tokens_out,
+                "cost_usd": round(call_cost, 6),
+            }
 
         except Exception as e:
             logger.error(f"Error tracking LLM cost: {str(e)}")
+            return {"tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0}
 
     def get_summary(self) -> dict[str, Any]:
         """Get cost tracking summary.

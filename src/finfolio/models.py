@@ -120,7 +120,6 @@ class ReportModel(BaseModel):
     fact_check_duration_seconds: float = Field(
         ..., gt=0, description="Wall-clock time for fact-checking"
     )
-    search_provider: Literal["Tavily"] = Field(default="Tavily", description="Web search provider")
     llm_model: str = Field(..., min_length=1, description="LLM model used for verdicts")
 
     # Cost tracking

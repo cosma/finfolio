@@ -48,8 +48,8 @@
 - [X] T009 [US1] Implement the chain in `FactChecker.verify_claim` in `src/finfolio/fact_checker.py` (spec FR-001, FR-003)
 - [X] T010 [US1] Accept a free-source verdict only if not Unverified and confidence ≥ threshold, in `FactChecker.verify_claim` in `src/finfolio/fact_checker.py` (spec FR-002). The threshold is currently a module constant, `DDG_CONFIDENCE_THRESHOLD`.
 - [X] T011 [US1] Test the chain for all fallback cases in `tests/unit/test_search_chain.py` (spec US1 acceptance scenarios 1–4)
-- [ ] T029 [US1] Test that an opinion or forecast claim is skipped by the fact-check run, with no search and no verdict, in `tests/unit/test_search_chain.py` (constitution: mandated forecast/opinion test case)
-- [ ] T012 [US1] Make the threshold a configurable setting `FINFOLIO_SEARCH_MIN_CONFIDENCE`, default 0.8, validated to [0, 1]. Add `search_min_confidence` to `Config` in `src/finfolio/config.py`, use it in `verify_claim` in place of `DDG_CONFIDENCE_THRESHOLD`, and add a test in `tests/unit/test_search_chain.py` that a different value changes the outcome (spec FR-012, clarification session 2026-10-14)
+- [X] T029 [US1] Test that an opinion or forecast claim is skipped by the fact-check run, with no search and no verdict, in `tests/unit/test_search_chain.py` (constitution: mandated forecast/opinion test case)
+- [X] T012 [US1] Make the threshold a configurable setting `FINFOLIO_SEARCH_MIN_CONFIDENCE`, default 0.8, validated to [0, 1]. Add `search_min_confidence` to `Config` in `src/finfolio/config.py`, use it in `verify_claim` in place of `DDG_CONFIDENCE_THRESHOLD`, and add a test in `tests/unit/test_search_chain.py` that a different value changes the outcome (spec FR-012, clarification session 2026-10-14)
 
 ---
 
@@ -75,8 +75,8 @@
 - [X] T017 [US3] Include reports with re-checkable verdicts or checkable claims without a verdict in `list_pending_videos` via `_report_needs_recheck` in `src/finfolio/storage.py` (spec FR-009)
 - [X] T018 [US3] Treat a True or False verdict with no `source_url` as invalid model output in `_parse_verdict_response` in `src/finfolio/fact_checker.py` (spec FR-008)
 - [X] T019 [US3] Test re-check replacement, pending rules, and invalid output in `tests/unit/test_recheck.py`, `tests/unit/test_cleanup_verdicts.py`, and `tests/unit/test_search_chain.py` (spec US3 acceptance scenarios 1–3)
-- [ ] T030 [US3] Test that a missing confidence value is never accepted from the free source, in `tests/unit/test_search_chain.py` (spec Edge Cases)
-- [ ] T031 [US3] Test that an unreadable report is skipped by `list_pending_videos` without error, in `tests/unit/test_recheck.py` (spec Edge Cases)
+- [X] T030 [US3] Test that a missing confidence value is never accepted from the free source, in `tests/unit/test_search_chain.py` (spec Edge Cases)
+- [X] T031 [US3] Test that an unreadable report is skipped by `list_pending_videos` without error, in `tests/unit/test_recheck.py` (spec Edge Cases)
 
 ---
 
@@ -90,17 +90,17 @@
 - [X] T021 [US4] Apply the cleanup to the local stored reports: 1,206 Unverified verdicts removed, 840 marked `verified_by=tavily` (spec SC-001). Stored data is gitignored, so this task has no file change in the repo.
 - [X] T022 [US4] Test the cleanup rules in `tests/unit/test_cleanup_verdicts.py` (spec US4 acceptance scenarios 1–3)
 - [X] T023 [US4] Make a verdict that is Unverified after both sources returned no sources final, by setting `verified_by=tavily` on it (spec FR-013). The re-check rule in T016 then skips it.
-- [ ] T024 [US4] Remove the top-level `search_provider` field from `ReportModel` in `src/finfolio/models.py` (line ~123) and from `build_report` in `src/finfolio/fact_checker.py` (line ~316), and have `scripts/cleanup_claim_verdicts.py` remove the field from existing reports. Add a test that new reports have no `search_provider` (spec FR-014; plan Design Decision 7)
+- [X] T024 [US4] (code done; existing stored reports still carry the field until the cleanup is applied) Remove the top-level `search_provider` field from `ReportModel` in `src/finfolio/models.py` (line ~123) and from `build_report` in `src/finfolio/fact_checker.py` (line ~316), and have `scripts/cleanup_claim_verdicts.py` remove the field from existing reports. Add a test that new reports have no `search_provider` (spec FR-014; plan Design Decision 7)
 
 ---
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T025 [P] Attach the cost tracker to every LLM call on the verify path, so each call is logged with model, tokens, and cost. Today `CostTrackingCallback` is created in `FactChecker.__init__` (`src/finfolio/fact_checker.py`) but never used. Add a test that a verify call produces a cost entry. (Constitution Principle VII, see plan Constitution Check)
-- [ ] T026 Run the validation steps in `specs/006-search-fallback/quickstart.md`, after T012 and T024 are done, and fix any step whose expected output does not match
+- [X] T025 [P] Attach the cost tracker to every LLM call on the verify path, so each call is logged with model, tokens, and cost. Today `CostTrackingCallback` is created in `FactChecker.__init__` (`src/finfolio/fact_checker.py`) but never used. Add a test that a verify call produces a cost entry. (Constitution Principle VII, see plan Constitution Check)
+- [X] T026 Run the validation steps in `specs/006-search-fallback/quickstart.md`, after T012 and T024 are done, and fix any step whose expected output does not match. Run: steps 1, 2, 3. Not run: step 4 (spends search and LLM credits). Step 5 needs a new fact-check run to produce a record without `search_provider`. Step 3 found a bug in the cleanup, fixed: final Unverified verdicts (with `verified_by`) are no longer removed.
 - [X] T027 Run the unit suites touched by this feature and confirm they pass without network or `.env`: `tests/unit/test_search_chain.py`, `tests/unit/test_recheck.py`, `tests/unit/test_search_quota.py`, `tests/unit/test_cleanup_verdicts.py`. Out of scope: 9 tests already failing on main (summarizer and `test_fact_check_single_video`).
-- [ ] T032 Log the number of free-source and paid-source searches for each run, and the claims that fell back, so SC-003 can be checked from run output (spec SC-003). Add a test in `tests/unit/test_search_chain.py` that the counts match the chain's decisions.
-- [ ] T028 Regenerate the monthly digests so their counts match the cleaned reports: `finfolio report --month YYYY-MM` for each month (spec Assumptions)
+- [X] T032 Log the number of free-source and paid-source searches for each run, and the claims that fell back, so SC-003 can be checked from run output (spec SC-003). Add a test in `tests/unit/test_search_chain.py` that the counts match the chain's decisions.
+- [X] T028 Regenerate the monthly digests so their counts match the cleaned reports: `finfolio report --month YYYY-MM` for each month (spec Assumptions)
 
 ---
 

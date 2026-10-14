@@ -53,6 +53,7 @@ def test_rerun_replaces_legacy_verdict_with_checked_one(tmp_path, monkeypatch):
         search_timeout_seconds=10.0,
         llm_model="claude-haiku-4-5-20251001",
         anthropic_api_key=None,
+        search_min_confidence=0.8,
     )
     claim = ClaimModel(
         id="c0",
@@ -96,3 +97,16 @@ def test_rerun_replaces_legacy_verdict_with_checked_one(tmp_path, monkeypatch):
     assert [(v["claim_id"], v["verdict"], v["verified_by"]) for v in verdicts] == [
         ("c0", "True", "duckduckgo")
     ]
+
+
+def test_unreadable_report_is_skipped_by_pending_check(tmp_path, monkeypatch):
+    """An unparseable report is left alone by the pending check, without raising (spec Edge Cases)."""
+    summaries, reports = tmp_path / "summaries", tmp_path / "videos"
+    summaries.mkdir()
+    reports.mkdir()
+    (summaries / "ccccccccccc.json").write_text("{}", encoding="utf-8")
+    (reports / "ccccccccccc.json").write_text("{not json", encoding="utf-8")
+    monkeypatch.setattr(storage, "SUMMARIES_DIR", summaries)
+    monkeypatch.setattr(storage, "REPORTS_DIR", reports)
+
+    assert storage.list_pending_videos() == []

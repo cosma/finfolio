@@ -21,9 +21,6 @@ from finfolio.search.tavily_client import TavilySearchClient
 
 logger = logging.getLogger(__name__)
 
-# A DuckDuckGo verdict is accepted only at or above this confidence (see verify_claim).
-DDG_CONFIDENCE_THRESHOLD = 0.8
-
 
 class FactChecker:
     """Main fact-checking orchestrator using LangChain + Tavily.
@@ -45,6 +42,8 @@ class FactChecker:
             api_key=config.tavily_api_key, timeout_seconds=config.search_timeout_seconds
         )
         self.cost_tracker = CostTrackingCallback()
+        # Per-run counters of searches, so a run can report how much each source was used (SC-003).
+        self.search_stats = {"duckduckgo": 0, "tavily": 0, "fallbacks": 0}
         logger.info(f"FactChecker initialized with model: {config.llm_model}")
 
     def _get_llm(self):
@@ -79,6 +78,7 @@ class FactChecker:
         SearchError, which stops the run; it never becomes an Unverified verdict.
         """
         try:
+            self.search_stats["duckduckgo"] += 1
             ddg_results = self.ddg_client.search(claim.text)
         except Exception as e:
             logger.warning(f"DuckDuckGo search failed for {claim.id}, using Tavily: {e}")
@@ -89,7 +89,7 @@ class FactChecker:
             if (
                 verdict.verdict != "Unverified"
                 and verdict.confidence is not None
-                and verdict.confidence >= DDG_CONFIDENCE_THRESHOLD
+                and verdict.confidence >= self.config.search_min_confidence
             ):
                 logger.info(
                     f"Verified {claim.id} with DuckDuckGo (confidence {verdict.confidence})"
@@ -97,6 +97,8 @@ class FactChecker:
                 return verdict
             logger.info(f"DuckDuckGo not confident for {claim.id}, using Tavily")
 
+        self.search_stats["fallbacks"] += 1
+        self.search_stats["tavily"] += 1
         tavily_results = self.search_client.search(claim.text)
         return self.fact_check_claim(claim, tavily_results, search_provider="tavily")
 
@@ -125,6 +127,7 @@ class FactChecker:
 
         # Call LLM for verdict reasoning
         response = self.llm.invoke(prompt)
+        call = self.cost_tracker.record(response)
         logger.debug(f"LLM response for {claim.id}: {response.content}")
 
         # Parse LLM response
@@ -145,9 +148,9 @@ class FactChecker:
             fact_checked_at=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
             llm_model=self.config.llm_model,
             reasoning_cost={
-                "tokens_in": 0,  # Would be populated by cost tracker
-                "tokens_out": 0,
-                "cost_usd": 0.0,
+                "tokens_in": call["tokens_in"],
+                "tokens_out": call["tokens_out"],
+                "cost_usd": call["cost_usd"],
             },
         )
 
@@ -313,7 +316,6 @@ class FactChecker:
             "transcript_source": summary.get("transcript_source", "Unknown"),
             "fact_checked_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
             "fact_check_duration_seconds": 0.1,  # Placeholder; will be set by caller
-            "search_provider": "Tavily",
             "llm_model": self.config.llm_model,
             "cost": {
                 "search_usd": 0.0,  # Would be populated by caller

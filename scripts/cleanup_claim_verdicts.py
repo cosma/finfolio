@@ -31,7 +31,9 @@ def clean_report(report: dict[str, Any]) -> tuple[dict[str, Any], int, int]:
     removed = 0
     marked = 0
     for verdict in report.get("verdicts", []):
-        if verdict.get("verdict") == "Unverified":
+        # Only Unverified verdicts with no verified_by are empty-search leftovers. Those with
+        # verified_by were recorded as final (FR-013) and are kept.
+        if verdict.get("verdict") == "Unverified" and not verdict.get("verified_by"):
             removed += 1
             continue
         if not verdict.get("verified_by"):
@@ -43,8 +45,10 @@ def clean_report(report: dict[str, Any]) -> tuple[dict[str, Any], int, int]:
     for verdict in kept:
         breakdown[verdict["verdict"]] += 1
 
+    # The report-level search_provider field is removed (FR-014) from stored reports too.
+    rest = {k: v for k, v in report.items() if k != "search_provider"}
     cleaned = {
-        **report,
+        **rest,
         "verdicts": kept,
         "verdict_count": len(kept),
         "verdict_breakdown": breakdown,
@@ -59,7 +63,9 @@ def write_json(path: Path, data: dict[str, Any]) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--apply", action="store_true", help="write changes (default: dry run)")
     args = parser.parse_args()
 
@@ -68,7 +74,8 @@ def main() -> int:
     for path in files:
         report = json.loads(path.read_text(encoding="utf-8"))
         cleaned, removed, marked = clean_report(report)
-        if removed or marked:
+        dropped_provider = "search_provider" in report
+        if removed or marked or dropped_provider:
             changed_files += 1
             total_removed += removed
             total_marked += marked
@@ -77,7 +84,9 @@ def main() -> int:
 
     mode = "APPLY" if args.apply else "DRY RUN"
     print(f"[{mode}] reports scanned: {len(files)}, changed: {changed_files}")
-    print(f"unverified verdicts removed: {total_removed}, verdicts marked verified_by=tavily: {total_marked}")
+    print(
+        f"unverified verdicts removed: {total_removed}, verdicts marked verified_by=tavily: {total_marked}"
+    )
     if not args.apply:
         print("No files written. Re-run with --apply to make these changes.")
     return 0

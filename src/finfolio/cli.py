@@ -262,6 +262,7 @@ def summarize(ctx: click.Context, batch_size: int) -> None:
             try:
                 # Load transcript JSON with publication_timestamp
                 import json
+
                 transcript_data = json.loads(transcript_file.read_text(encoding="utf-8"))
                 transcript_text = transcript_data.get("content", "")
                 publication_timestamp = transcript_data.get("publication_timestamp")
@@ -382,9 +383,7 @@ def summarize(ctx: click.Context, batch_size: int) -> None:
     help="Process a single video by ID (overrides --limit)",
 )
 @click.option("--verbose", is_flag=True, help="Enable DEBUG logging")
-def factcheck(
-    limit: int | None, video_id: str | None, verbose: bool
-) -> None:
+def factcheck(limit: int | None, video_id: str | None, verbose: bool) -> None:
     """Fact-check extracted claims from video summaries."""
     log_level = "DEBUG" if verbose else "INFO"
     logger = configure_logging(log_level)
@@ -461,6 +460,8 @@ def factcheck(
         click.echo("Summary:")
         click.echo(f"  Videos processed: {videos_processed}")
         click.echo(f"  Claims verified: {claims_verified}")
+        click.echo(f"  Free searches (DuckDuckGo): {checker.search_stats['duckduckgo']}")
+        click.echo(f"  Paid searches (Tavily): {checker.search_stats['tavily']}")
         click.echo(f"  Errors: {errors_total}")
         click.echo(f"  Duration: {duration:.1f}s")
         click.echo("=" * 60)
